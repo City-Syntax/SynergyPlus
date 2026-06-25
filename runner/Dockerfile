@@ -5,7 +5,7 @@
 # Silicon / arm64 (OrbStack) AND on amd64 (EKS) — Docker selects the base image arch
 # and TARGETARCH picks the matching EnergyPlus tarball.
 #
-#   docker build -t ghcr.io/synergyplus/energyplus-runner:24.1.0 runner/
+#   docker build -t ghcr.io/city-syntax/synergyplus-runner:24.1.0 runner/
 #
 # For another EnergyPlus version, pass its version AND release commit sha:
 #   --build-arg EPLUS_VERSION=24.2.0 --build-arg EPLUS_SHA=<sha>

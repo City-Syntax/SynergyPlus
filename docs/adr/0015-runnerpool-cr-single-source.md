@@ -32,7 +32,7 @@ mostly not real):
 
 So the genuine residuals are narrow: **(a)** the Runner image tag is the one value
 inside a CR that does not derive from `spec.EngineVersion` — `image:
-ghcr.io/synergyplus/energyplus-runner:24.1.0` is typed verbatim
+ghcr.io/city-syntax/synergyplus-runner:24.1.0` is typed verbatim
 (`runnerpool_controller.go:123` consumes `pool.Spec.Image` as-is); and **(b)** the
 Compose path has no operator, so it re-states `SP_ENGINE_VERSION` /
 `SP_ALLOWED_ENGINE_VERSIONS` by hand.
