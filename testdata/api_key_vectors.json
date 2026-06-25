@@ -1,0 +1,18 @@
+[
+  {
+    "raw": "sp_live_0123456789abcdef0123456789abcdef0123456789abcdef",
+    "sha256": "846ee2bdb2183d6b351d293e5697e13d440a48d9b1117b4283fe2040913a02a3"
+  },
+  {
+    "raw": "sp_live_deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    "sha256": "946b3f99c50756b2c715233d94d169431ae95bc60762be71dec60b8f44b8f497"
+  },
+  {
+    "raw": "sp_live_ffffffffffffffffffffffffffffffffffffffffffffffff",
+    "sha256": "99a3a7b5041a1319fe7776ea31ffe56e0b534c82df6c0797e4067ff2b3e123fb"
+  },
+  {
+    "raw": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]
