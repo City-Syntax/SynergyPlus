@@ -1,6 +1,6 @@
 [project]
 name = "synergy-runner"
-version = "0.6.0"
+version = "0.6.1"
 description = "SynergyPlus pull-loop Runner — claim queued simulations, run EnergyPlus, extract Core Metrics, upload artifacts, write results."
 readme = "README.md"
 requires-python = ">=3.9"
