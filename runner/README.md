@@ -61,14 +61,14 @@ simulation** — a bogus `s3://` ref surfaces as a failure (QA L-3).
 The Runner needs the `energyplus` binary on PATH, so run it from the image:
 
 ```bash
-docker build -t ghcr.io/synergyplus/energyplus-runner:24.1.0 runner/
+docker build -t ghcr.io/city-syntax/synergyplus-runner:24.1.0 runner/
 
 docker run --rm --network <compose-net> \
   -e DATABASE_URL="postgres://synergy:synergy@postgres:5432/synergy?sslmode=disable" \
   -e S3_ENDPOINT="http://minio:9000" -e S3_REGION=us-east-1 \
   -e S3_ACCESS_KEY=synergy -e S3_SECRET_KEY=synergypass \
   -e SP_ENGINE_VERSION=24.1.0 \
-  ghcr.io/synergyplus/energyplus-runner:24.1.0
+  ghcr.io/city-syntax/synergyplus-runner:24.1.0
 ```
 
 For code-only work (claim/loop/metrics) you can `pip install -e runner/` and run

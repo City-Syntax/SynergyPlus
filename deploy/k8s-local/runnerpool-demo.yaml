@@ -8,7 +8,7 @@ metadata:
   namespace: synergy-system
 spec:
   engineVersion: "24.1.0"
-  image: ghcr.io/synergyplus/energyplus-runner:24.1.0
+  image: ghcr.io/city-syntax/synergyplus-runner:24.1.0
   resources:
     cpu: "250m"        # small so KEDA can fan out several runners on a laptop
     memory: "512Mi"    # headroom for a real (small) EnergyPlus run
