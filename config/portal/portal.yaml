@@ -1,0 +1,60 @@
+# Developer portal (Next.js + Better Auth) — Deployment + Service.
+#
+# The portal serves the login + API-key UI and is the public web entry point.
+# It is stateless: it reads/writes the shared Postgres (auth + app schemas) and
+# sends magic-link mail over SMTP. All of that comes from the `synergyplus-env`
+# Secret (CONTRACT §6) — DATABASE_URL, BETTER_AUTH_URL/SECRET,
+# NEXT_PUBLIC_API_BASE_URL, ALLOWED_EMAIL_DOMAINS, PORTAL_DEV_LOGIN, and the
+# MAIL_FROM / SMTP_* email settings.
+#
+# The Service is named `synergyplus-portal` on port 80 -> 3000 to match the ALB
+# Ingress in the SynergyPlusIAC stack (synergyplus.urbanflow.co -> here).
+#
+# No ServiceAccount/IRSA: the portal needs no AWS access (DB + SMTP only).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synergyplus-portal
+  namespace: synergy-system
+  labels: { app: synergyplus-portal }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: synergyplus-portal }
+  template:
+    metadata:
+      labels: { app: synergyplus-portal }
+    spec:
+      containers:
+        - name: portal
+          # Published by .github/workflows/release-images.yml as
+          # ghcr.io/<owner>/synergyplus-portal. Public GHCR (open-source) — no
+          # imagePullSecret needed.
+          image: ghcr.io/city-syntax/synergyplus-portal:latest
+          # CONTRACT §6: DATABASE_URL + BETTER_AUTH_* + SMTP_* all arrive via the
+          # shared env Secret. In production PORTAL_DEV_LOGIN=0, so magic links
+          # are delivered over SMTP (never surfaced in the UI/logs).
+          envFrom:
+            - secretRef: { name: synergyplus-env }
+          ports:
+            - { name: http, containerPort: 3000 }
+          readinessProbe:
+            httpGet: { path: /login, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /login, port: 3000 }
+            initialDelaySeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synergyplus-portal
+  namespace: synergy-system
+spec:
+  selector: { app: synergyplus-portal }
+  ports:
+    - { name: http, port: 80, targetPort: 3000 }
