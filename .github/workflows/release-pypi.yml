@@ -32,6 +32,7 @@ jobs:
       name: ${{ matrix.environment }}
       url: https://pypi.org/project/${{ matrix.package }}/
     permissions:
+      contents: read    # needed for actions/checkout (a permissions block replaces all defaults)
       id-token: write   # required for Trusted Publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
