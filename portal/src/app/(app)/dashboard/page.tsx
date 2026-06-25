@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { getPortalUser } from "@/lib/session";
 import { listApiKeys } from "@/lib/api-keys";
+import { getDashboardData } from "@/lib/dashboard";
 import { apiBaseUrlPublic } from "@/lib/env";
+import { LiveActivity } from "./LiveActivity";
 
 export default async function DashboardPage() {
   const user = (await getPortalUser())!;
-  const keys = await listApiKeys(user.userId);
+  const [keys, activity] = await Promise.all([
+    listApiKeys(user.userId),
+    getDashboardData(user.userId),
+  ]);
   const activeKeys = keys.filter((k) => !k.revoked_at);
 
   return (
@@ -19,6 +24,8 @@ export default async function DashboardPage() {
           need to run EnergyPlus at scale.
         </p>
       </header>
+
+      <LiveActivity initial={activity} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Active API keys" value={String(activeKeys.length)} />
