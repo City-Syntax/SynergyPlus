@@ -49,22 +49,30 @@ make k8s-undeploy # tear it back down
 pip install synergyplus
 ```
 
+You only need your **API key** — no S3 credentials. Pass **local file paths**: the SDK
+uploads them through short-lived **presigned URLs** the API mints with its own
+credentials (which never leave the cluster), and downloads results the same way.
+
 ```python
-from synergyplus import SynergyClient, ArtifactRef
+from synergyplus import SynergyClient
 
 sp = SynergyClient("http://localhost:8090", token="synergy-dev-key")
 
 sim = sp.submit_simulation(
     engine_version="24.1.0",
-    model=ArtifactRef("s3://models/sample/baseline.idf"),
-    weather=ArtifactRef("s3://weather/sample/chicago.epw"),
+    model="./baseline.idf",        # local file → uploaded via a presigned URL
+    weather="./chicago.epw",
 )
 
 sp.wait(sim["id"])
-print(sp.get_results(sim["id"]))
+print(sp.get_metrics(sim["id"]))           # site EUI, energy, unmet hours, …
+sp.download_results(sim["id"], "./out/")   # result artifacts → local folder
 ```
 
-See [`sdk/python/README.md`](sdk/python/README.md) for the full client reference.
+This presigned, API-key-only flow is the **default**. If you have direct S3/MinIO
+access you can instead pass `s3://…` refs (or `ArtifactRef`) and S3 credentials to
+transfer directly — see [`sdk/python/README.md`](sdk/python/README.md) for both backends
+and the full client reference.
 
 ## License
 
