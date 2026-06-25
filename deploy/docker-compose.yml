@@ -126,6 +126,8 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
       BETTER_AUTH_SECRET: dev-secret-change-me-to-a-long-random-string
       PORTAL_DEV_LOGIN: "1"
+      # Email domains allowed to sign in (comma-separated). Configure per install.
+      ALLOWED_EMAIL_DOMAINS: urbanflow.co,nus.edu.sg
     ports: ["3000:3000"]
     depends_on:
       postgres: { condition: service_healthy }

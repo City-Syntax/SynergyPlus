@@ -1,9 +1,10 @@
 import { LoginForm } from "./LoginForm";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { env } from "@/lib/env";
+import { ALLOWED_DOMAINS, allowedDomainsLabel, env } from "@/lib/env";
 
 export default function LoginPage() {
+  const domainsLabel = allowedDomainsLabel(ALLOWED_DOMAINS);
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden px-4">
       {/* ambient glow */}
@@ -27,14 +28,15 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-panel p-6 shadow-2xl shadow-black/20">
-          <LoginForm devLoginEnabled={env.devLoginEnabled} />
+          <LoginForm devLoginEnabled={env.devLoginEnabled} allowedDomains={ALLOWED_DOMAINS} />
         </div>
 
-        <p className="mt-5 text-center text-xs text-muted">
-          Access is restricted to{" "}
-          <span className="font-medium text-fg">@urbanflow.co</span> and{" "}
-          <span className="font-medium text-fg">@nus.edu.sg</span> accounts.
-        </p>
+        {domainsLabel && (
+          <p className="mt-5 text-center text-xs text-muted">
+            Access is restricted to{" "}
+            <span className="font-medium text-fg">{domainsLabel}</span> accounts.
+          </p>
+        )}
       </div>
     </main>
   );

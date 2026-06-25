@@ -84,10 +84,11 @@ success; severe and fatal do not.
 _Avoid_: status (reserved for the lifecycle phase), outcome
 
 **User**:
-A researcher who submits and owns Simulations, identified by an `@urbanflow.co` or
-`@nus.edu.sg` email via the in-cluster auth service. The unit of fairness and quota:
-per-User concurrency caps and priority govern how their queued work is claimed. The
-lab has ~40 Users sharing one installation.
+A researcher who submits and owns Simulations, identified by an email whose domain
+is in the installation's configured allow-list (`ALLOWED_EMAIL_DOMAINS`) via the
+in-cluster auth service. The unit of fairness and quota: per-User concurrency caps
+and priority govern how their queued work is claimed. The lab has ~40 Users sharing
+one installation.
 _Avoid_: tenant, account, owner (the lab as a whole is not a User)
 
 **Engine Version**:
