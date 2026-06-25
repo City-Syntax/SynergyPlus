@@ -14,6 +14,8 @@ const config: Config = {
         muted: "rgb(var(--muted) / <alpha-value>)",
         brand: "rgb(var(--brand) / <alpha-value>)",
         "brand-fg": "rgb(var(--brand-fg) / <alpha-value>)",
+        "accent-teal": "rgb(var(--accent-teal) / <alpha-value>)",
+        "accent-green": "rgb(var(--accent-green) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

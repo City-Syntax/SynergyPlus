@@ -13,8 +13,10 @@
   --border: 226 228 233;
   --fg: 17 19 24;
   --muted: 100 105 116;
-  --brand: 79 70 229; /* indigo-600 */
+  --brand: 0 130 196; /* #0082C4 — SynergyPlus blue (logo "+" hub) */
   --brand-fg: 255 255 255;
+  --accent-teal: 14 158 142; /* #0E9E8E — logo synergy nodes */
+  --accent-green: 0 157 87; /* #009D57 — logo orbit */
 }
 
 .dark {
@@ -25,8 +27,10 @@
   --border: 38 40 49;
   --fg: 237 238 242;
   --muted: 148 152 164;
-  --brand: 129 140 248; /* indigo-400 */
+  --brand: 59 169 221; /* #3BA9DD — logo blue, lightened for dark bg */
   --brand-fg: 15 16 22;
+  --accent-teal: 45 194 168; /* #2DC2A8 — lightened for dark bg */
+  --accent-green: 34 199 122; /* #22C77A — lightened for dark bg */
 }
 
 html {
