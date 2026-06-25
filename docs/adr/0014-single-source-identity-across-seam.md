@@ -19,21 +19,25 @@ Two identity facts are duplicated across the boundary:
   `internal/api/auth.go:22` (`HashAPIKey`). The portal issues the key; the
   apiserver validates it. There is no round-trip test, so a typo in either
   hasher silently 401s every key with no visible cause.
-- **Domain allow-list.** `["urbanflow.co", "nus.edu.sg"]` is written three+ times
-  inside the portal alone — `portal/src/lib/env.ts:6`,
-  `portal/src/app/login/LoginForm.tsx:6`, and enforced twice in
-  `portal/src/lib/auth.ts:71,85` — and the Go apiserver has *no* allow-list at
-  all, fully trusting the portal as sole gatekeeper. Adding a lab domain is a
-  four-site edit.
+- **Domain allow-list.** The domain list `["urbanflow.co", "nus.edu.sg"]` is
+  defined in three separate places inside the portal — `portal/src/lib/env.ts:6`
+  (`ALLOWED_DOMAINS`), a separate hardcoded array in
+  `portal/src/app/login/LoginForm.tsx:6`, and the `isAllowedEmail` helper in
+  `portal/src/lib/auth.ts:26-30`. (The two enforcement *sites* in `auth.ts` — the
+  before-hook at `:71` and the `databaseHooks.user.create.before` at `:85` — both
+  call that one helper, so the logic isn't re-implemented there; it's the *list*
+  that is triplicated.) The Go apiserver has *no* allow-list at all, fully
+  trusting the portal as sole gatekeeper. Adding a lab domain is a three-site
+  edit.
 
 ## Decision
 
 - Treat key-hashing as a two-adapter seam pinned by a shared vector (same
   mechanism as ADR-0012) and add one **create-key → validate-key** contract test
   that exercises the portal issuer against the Go validator end-to-end.
-- Collapse the portal's tripled allow-list to a single exported constant
-  (`ALLOWED_DOMAINS` in `env.ts`) consumed by the form, the magic-link hook, and
-  the message strings.
+- Collapse the portal's triplicated domain list to the single exported constant
+  (`ALLOWED_DOMAINS` in `env.ts`), consumed by the `LoginForm` array, the
+  `isAllowedEmail` helper, and the message strings.
 - Decide deliberately whether domain enforcement belongs at the **data boundary**
   (a `CHECK` / insert trigger on `app.users`) so the invariant survives a portal
   bug, rather than living only in TypeScript.

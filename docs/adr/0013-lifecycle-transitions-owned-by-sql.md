@@ -20,13 +20,17 @@ The running-phase state machine is split across languages:
 No single artifact states the legal transitions. The `runner_id` fence — the
 guard that stops a late-waking zombie Runner from clobbering a row that the Reaper
 re-queued and another Runner has since Claimed (the "M-4" guard documented in
-`db.py:210-213`) — is re-written independently in `heartbeat`,
-`finish_simulation`, and the Reaper's `WHERE` clauses. Understanding "can this
-write land?" means reading three sites in two languages.
+`db.py:210-213`) — is written in two Python sites: `heartbeat` (`db.py:57`) and
+`finish_simulation` (`db.py:221`). The Reaper deliberately does **not** fence on
+`runner_id`; it transitions purely on lease expiry (`reaper.go:69,76`). So the
+split is asymmetric: the forward transitions and their fence live in the Runner
+(Python), the recovery transitions live unfenced in the operator (Go), and "can
+this write land?" still means reading both runtimes to reconstruct one state
+machine.
 
 This is a locality failure: a single concept (the Lease lifecycle) is smeared
-across modules, and the invariant that protects it (the fence) is duplicated, so
-it can be forgotten in one place without the others noticing.
+across modules, the protecting invariant (the fence) is repeated in two Python
+sites, and no one place declares which transitions are legal or which are fenced.
 
 ## Decision
 
@@ -49,8 +53,9 @@ predicate is the deep module that function wraps).
 - **A shared lifecycle module per runtime** (Go package + Python module) — keeps
   logic in application code but must be implemented twice and kept in sync; weaker
   than a single home.
-- **Status quo** — the fence stays duplicated; correctness rests on every author
-  remembering to repeat the `runner_id` guard.
+- **Status quo** — the fence stays repeated across the two Python sites and absent
+  from the Reaper; correctness rests on every author knowing which transitions
+  must carry the `runner_id` guard and which are expiry-only.
 
 ## Consequences
 
