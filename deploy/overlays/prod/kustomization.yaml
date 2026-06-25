@@ -8,8 +8,10 @@ kind: Kustomization
 # imagePullPolicy: IfNotPresent. That flow must keep working, so we do NOT edit
 # the base refs in place — this overlay remaps the operator + apiserver to the
 # real images published by .github/workflows/release-images.yml
-# (ghcr.io/city-syntax/synergyplus-*). The portal already references its
-# published image directly in the base.
+# (ghcr.io/city-syntax/synergyplus-*), pinned to the current release tag so
+# prod is reproducible (and a new tag forces a pull past the base's
+# imagePullPolicy: IfNotPresent). The portal references its published image in
+# the base; we pin its tag here too. Bump these tags each release.
 #
 # (The overlay lives under deploy/ rather than config/ because a kustomize
 # overlay may not sit inside its own base directory.)
@@ -30,5 +32,9 @@ resources:
 images:
   - name: ghcr.io/synergyplus/operator
     newName: ghcr.io/city-syntax/synergyplus-operator
+    newTag: "0.6.2"
   - name: ghcr.io/synergyplus/apiserver
     newName: ghcr.io/city-syntax/synergyplus-apiserver
+    newTag: "0.6.2"
+  - name: ghcr.io/city-syntax/synergyplus-portal
+    newTag: "0.6.2"
