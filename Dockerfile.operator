@@ -1,12 +1,15 @@
 # Build the SynergyPlus operator (controller-manager).
-FROM golang:1.25 AS build
+# Build on the native BUILDPLATFORM and cross-compile to TARGETARCH so multi-arch
+# builds don't pay QEMU emulation (a pure-Go binary cross-compiles natively).
+FROM --platform=$BUILDPLATFORM golang:1.25 AS build
+ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY api/ api/
 COPY internal/ internal/
 COPY cmd/ cmd/
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/operator ./cmd/operator
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/operator ./cmd/operator
 
 FROM gcr.io/distroless/static:nonroot
 COPY --from=build /out/operator /operator
