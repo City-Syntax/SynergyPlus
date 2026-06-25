@@ -36,6 +36,14 @@ type RunnerPoolReconciler struct {
 	// RunnerEnv is the base environment passed through to Runner pods (CONTRACT
 	// §6: DATABASE_URL + S3 creds), injected from the operator's own environment.
 	RunnerEnv []corev1.EnvVar
+
+	// RunnerServiceAccount is the ServiceAccount runner pods run as. On EKS this
+	// is the IRSA-annotated `synergyplus-runner` SA, giving runners keyless,
+	// scoped S3 access via the cluster OIDC provider; without it pods fall back
+	// to `default` (no AWS identity) and S3 fetches fail with "Unable to locate
+	// credentials". Empty leaves it unset (local/OrbStack, where creds come from
+	// RunnerEnv static keys instead).
+	RunnerServiceAccount string
 }
 
 // +kubebuilder:rbac:groups=synergyplus.io,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
@@ -118,6 +126,10 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, pool *sy
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
 				Spec: corev1.PodSpec{
+					// IRSA on EKS: run as the scoped synergyplus-runner SA so
+					// boto3 assumes its S3 role via the OIDC provider. Empty
+					// (local) leaves the default SA and relies on RunnerEnv keys.
+					ServiceAccountName: r.RunnerServiceAccount,
 					Containers: []corev1.Container{{
 						Name:  "runner",
 						Image: runnerImage(pool),
@@ -221,7 +233,7 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func deployName(p *synergyv1.RunnerPool) string      { return "runner-" + p.Name }
+func deployName(p *synergyv1.RunnerPool) string       { return "runner-" + p.Name }
 func scaledObjectName(p *synergyv1.RunnerPool) string { return "runner-" + p.Name }
 func deployKey(p *synergyv1.RunnerPool) types.NamespacedName {
 	return types.NamespacedName{Name: deployName(p), Namespace: p.Namespace}

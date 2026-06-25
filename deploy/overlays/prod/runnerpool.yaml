@@ -1,0 +1,24 @@
+# Production RunnerPool (EKS / SynergyPlusIAC stack).
+#
+# The operator turns this into a Deployment of runner pods + a KEDA ScaledObject
+# that scales them on eligible queue depth (scale-to-zero at idle). Runner pods
+# run as the IRSA-annotated `synergyplus-runner` ServiceAccount (set by the
+# operator via SP_RUNNER_SERVICE_ACCOUNT), giving them keyless, scoped S3 access.
+#
+# spec.image is PINNED on purpose: CI tags the runner image by platform semver
+# only (:0.6.2, :latest), never by engineVersion, so the operator's
+# :<engineVersion> default would 404 (see overlay note). Pin to the release tag.
+apiVersion: synergyplus.io/v1
+kind: RunnerPool
+metadata:
+  name: eplus-24-1-0
+  namespace: synergy-system
+spec:
+  engineVersion: "24.1.0"
+  image: ghcr.io/city-syntax/synergyplus-runner:0.6.2
+  resources:
+    cpu: "1"
+    memory: "2Gi"
+  minReplicas: 0          # scale-to-zero when the queue is empty
+  maxReplicas: 200        # ceiling
+  defaultUserConcurrency: 50
