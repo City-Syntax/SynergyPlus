@@ -17,14 +17,15 @@ kind: Kustomization
 # Deploy:  kubectl apply -k deploy/overlays/prod
 #
 # RUNNER IMAGE: runner pods are created by the operator from RunnerPool CRs;
-# kustomize can't remap a CRD field. The operator now DEFAULTS to the published
-# ghcr.io/city-syntax/synergyplus-runner:<engineVersion> (ADR-0015), so no
-# per-pool override is needed in production — a RunnerPool with just
-# `engineVersion` resolves to the right image. Set spec.image only to pin a
-# specific tag/digest.
+# kustomize can't remap a CRD field. NOTE: release-images.yml tags the runner
+# image by platform SEMVER ONLY (e.g. :0.6.2, :latest) — it does NOT publish a
+# per-engineVersion tag, so the operator's historical :<engineVersion> default
+# (ADR-0015) resolves to a non-existent tag (e.g. :24.1.0 -> 404). Production
+# RunnerPools MUST therefore pin spec.image to a real published tag/digest.
 
 resources:
   - ../../../config # the config/ base kustomization
+  - runnerpool.yaml # production RunnerPool (pinned runner image, IRSA S3)
 
 images:
   - name: ghcr.io/synergyplus/operator

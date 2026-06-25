@@ -5,7 +5,9 @@ metadata:
   namespace: synergy-system
 spec:
   engineVersion: "24.1.0"
-  image: ghcr.io/city-syntax/synergyplus-runner:24.1.0
+  # Pin to a published tag. The runner image is tagged by platform semver
+  # (:0.6.2, :latest), NOT by engineVersion — there is no :24.1.0 tag.
+  image: ghcr.io/city-syntax/synergyplus-runner:latest
   resources:
     cpu: "1"
     memory: "2Gi"

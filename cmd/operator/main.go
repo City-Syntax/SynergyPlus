@@ -48,6 +48,17 @@ func runnerEnv() []corev1.EnvVar {
 	return env
 }
 
+// runnerServiceAccount returns the ServiceAccount runner pods should run as,
+// from SP_RUNNER_SERVICE_ACCOUNT. On EKS this is set to the IRSA-annotated
+// synergyplus-runner SA (keyless scoped S3) via the synergyplus-env Secret.
+// Unset (local/OrbStack) leaves it empty → pods use the namespace `default`
+// SA and rely on static S3 keys from RunnerEnv instead. We intentionally do
+// NOT default to a non-empty SA: a runner pod referencing a SA that doesn't
+// exist in the cluster would never schedule, which would break local installs.
+func runnerServiceAccount() string {
+	return os.Getenv("SP_RUNNER_SERVICE_ACCOUNT")
+}
+
 func main() {
 	var metricsAddr, probeAddr string
 	var enableLeaderElection bool
@@ -73,8 +84,9 @@ func main() {
 	}
 
 	if err = (&controller.RunnerPoolReconciler{
-		Client:    mgr.GetClient(),
-		RunnerEnv: runnerEnv(),
+		Client:               mgr.GetClient(),
+		RunnerEnv:            runnerEnv(),
+		RunnerServiceAccount: runnerServiceAccount(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RunnerPool")
 		os.Exit(1)
