@@ -53,6 +53,15 @@ build: ## go build everything
 test: ## go test
 	go test ./...
 
+## --- Version catalog (ADR-0015: config/versions.yaml is the authored source) ---
+.PHONY: generate-versions
+generate-versions: ## Render config/versions.yaml into the live manifests
+	./hack/render-versions.sh
+
+.PHONY: check-versions
+check-versions: ## Fail if the committed manifests drift from config/versions.yaml (CI)
+	./hack/render-versions.sh --check
+
 ## --- Kubernetes path (operator + KEDA on the local cluster) ---
 .PHONY: keda
 keda: ## Install KEDA into the current cluster

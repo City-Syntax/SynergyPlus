@@ -16,8 +16,13 @@ type RunnerPoolSpec struct {
 	EngineVersion string `json:"engineVersion"`
 
 	// Image is the immutable, digest-pinned Runner image for this version,
-	// e.g. ghcr.io/synergyplus/energyplus-runner:24.1.0.
-	Image string `json:"image"`
+	// e.g. ghcr.io/synergyplus/energyplus-runner:24.1.0. Optional: when unset
+	// the operator derives the tag from EngineVersion so the CR stays the single
+	// source for Engine Version (ADR-0006/ADR-0015), i.e.
+	// ghcr.io/synergyplus/energyplus-runner:<engineVersion>. Set it explicitly
+	// only to pin a digest or override the registry/repository.
+	// +optional
+	Image string `json:"image,omitempty"`
 
 	// Resources is the compute request for a single Runner pod. EnergyPlus is
 	// single-threaded, so CPU defaults to one core.

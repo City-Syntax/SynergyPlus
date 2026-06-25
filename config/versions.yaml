@@ -1,0 +1,14 @@
+# Supported EnergyPlus engine versions — the single AUTHORED source (ADR-0015).
+#
+# This catalog is the one place a version string is typed by hand. The values
+# below are rendered into the live manifests by hack/render-versions.sh
+# (`make generate-versions`); CI runs `--check` to fail on drift. Never re-type a
+# version into a manifest — edit it here and re-render.
+#
+# Fields:
+#   versions  - the full supported set, in priority order. The first entry is the
+#               DEFAULT used for single-version manifest fields (the demo pool's
+#               engineVersion / SP_ENGINE_VERSION). The whole comma-joined list is
+#               rendered into SP_ALLOWED_ENGINE_VERSIONS (the apiserver allow-list).
+versions:
+  - "24.1.0"
