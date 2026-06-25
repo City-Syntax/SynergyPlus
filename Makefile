@@ -62,6 +62,16 @@ generate-versions: ## Render config/versions.yaml into the live manifests
 check-versions: ## Fail if the committed manifests drift from config/versions.yaml (CI)
 	./hack/render-versions.sh --check
 
+## --- Package versions (portal, runner, SDK are released in lockstep) ---
+.PHONY: bump-version
+bump-version: ## Set ALL package versions (make bump-version V=0.4.0)
+	@test -n "$(V)" || { echo "usage: make bump-version V=X.Y.Z" >&2; exit 1; }
+	./hack/bump-version.sh $(V)
+
+.PHONY: check-package-versions
+check-package-versions: ## Fail if package versions are not all identical (CI)
+	./hack/bump-version.sh --check
+
 ## --- Kubernetes path (operator + KEDA on the local cluster) ---
 .PHONY: keda
 keda: ## Install KEDA into the current cluster
