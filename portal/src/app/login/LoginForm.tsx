@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
-
-const ALLOWED = ["urbanflow.co", "nus.edu.sg"];
+import { ALLOWED_DOMAINS } from "@/lib/env";
 
 type DevLink = { url: string; token: string };
 
@@ -15,7 +14,7 @@ export function LoginForm({ devLoginEnabled }: { devLoginEnabled: boolean }) {
 
   function clientDomainOk(value: string): boolean {
     const domain = value.split("@")[1]?.toLowerCase();
-    return !!domain && ALLOWED.includes(domain);
+    return !!domain && (ALLOWED_DOMAINS as readonly string[]).includes(domain);
   }
 
   async function onSubmit(e: React.FormEvent) {
