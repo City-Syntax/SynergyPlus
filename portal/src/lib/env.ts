@@ -40,6 +40,26 @@ export const env = {
   devLoginEnabled:
     (process.env.PORTAL_DEV_LOGIN ?? (process.env.NODE_ENV !== "production" ? "1" : "0")) ===
     "1",
+
+  // Sender shown on outgoing magic-link mail. RFC-5322 form is accepted, e.g.
+  // "SynergyPlus <noreply@yourdomain.com>".
+  mailFrom: process.env.MAIL_FROM || "SynergyPlus <noreply@localhost>",
+
+  // Generic SMTP transport for production magic-link delivery. Provider-agnostic
+  // by design (point at SES SMTP, Resend, Postmark, a self-hosted relay, …) so a
+  // forker can swap providers with config alone — no code or image rebuild.
+  // Left unset in dev: when devLoginEnabled is on, the link is surfaced in the UI
+  // instead of mailed (see ./mailer + ./auth), so no SMTP server is required.
+  smtp: {
+    host: process.env.SMTP_HOST || "",
+    port: Number(process.env.SMTP_PORT || "587"),
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || "",
+    // Implicit TLS on 465; STARTTLS on 587/2525. Override with SMTP_SECURE=1/0.
+    secure: process.env.SMTP_SECURE
+      ? process.env.SMTP_SECURE === "1"
+      : Number(process.env.SMTP_PORT || "587") === 465,
+  },
 } as const;
 
 export const apiBaseUrlPublic =
