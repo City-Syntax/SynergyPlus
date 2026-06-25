@@ -120,7 +120,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, pool *sy
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:  "runner",
-						Image: pool.Spec.Image,
+						Image: runnerImage(pool),
 						Env:   env,
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
@@ -224,6 +224,21 @@ func deployName(p *synergyv1.RunnerPool) string      { return "runner-" + p.Name
 func scaledObjectName(p *synergyv1.RunnerPool) string { return "runner-" + p.Name }
 func deployKey(p *synergyv1.RunnerPool) types.NamespacedName {
 	return types.NamespacedName{Name: deployName(p), Namespace: p.Namespace}
+}
+
+// runnerImageRepo is the canonical Runner image repository. The tag is derived
+// from spec.EngineVersion so the RunnerPool CR remains the single source for
+// Engine Version (ADR-0006/ADR-0015).
+const runnerImageRepo = "ghcr.io/synergyplus/energyplus-runner"
+
+// runnerImage resolves the Runner container image for a pool. spec.Image, when
+// set, is honoured verbatim (allowing a pinned digest or an override registry);
+// when empty the tag is derived from spec.EngineVersion.
+func runnerImage(pool *synergyv1.RunnerPool) string {
+	if pool.Spec.Image != "" {
+		return pool.Spec.Image
+	}
+	return runnerImageRepo + ":" + pool.Spec.EngineVersion
 }
 
 func caps(v, def int32) int32 {
