@@ -1,0 +1,25 @@
+{
+  "name": "synergyplus-infra-cloud-native",
+  "version": "0.1.0",
+  "description": "Pulumi IaC (TypeScript) to deploy SynergyPlus on AWS, fully cloud-native: EKS + Karpenter, Aurora PostgreSQL Serverless v2, S3, ECR, AWS Load Balancer Controller + ALB, ACM, Route53 + ExternalDNS, Secrets Manager + External Secrets Operator, Amazon Managed Prometheus/Grafana + CloudWatch Container Insights, SES, IRSA, KMS. The all-managed mirror of infra/pulumi.",
+  "main": "index.ts",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "preview": "pulumi preview",
+    "up": "pulumi up"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.120.0",
+    "@pulumi/aws": "^6.50.0",
+    "@pulumi/eks": "^3.0.0",
+    "@pulumi/kubernetes": "^4.18.0",
+    "@pulumi/tls": "^5.0.0",
+    "@pulumi/random": "^4.16.0"
+  }
+}

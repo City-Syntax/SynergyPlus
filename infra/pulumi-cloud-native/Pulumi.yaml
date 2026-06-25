@@ -1,0 +1,20 @@
+name: synergyplus-infra-cloud-native
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: >-
+  SynergyPlus on AWS — fully cloud-native (all-managed) deployment. Provisions a
+  VPC; an Amazon EKS cluster (managed control plane + managed node group) with
+  Karpenter for node autoscaling; Amazon Aurora PostgreSQL Serverless v2
+  (Multi-AZ, automated backups + PITR) REPLACING the in-cluster Postgres; S3
+  buckets (SSE-KMS, versioning, lifecycle TTL); ECR repos (apiserver/operator/
+  runner/portal/seed); the AWS Load Balancer Controller + ALB with ACM TLS and
+  Route53 + ExternalDNS; AWS Secrets Manager + the External Secrets Operator
+  (syncing synergyplus-env); Amazon Managed Prometheus + Amazon Managed Grafana
+  + CloudWatch Container Insights + Fluent Bit; SES for Better Auth email; KMS
+  envelope encryption for EKS secrets, Aurora, and S3; and IRSA for keyless
+  pod->AWS access. KEDA stays for pod autoscaling (no managed equivalent). The
+  all-managed mirror of infra/pulumi.
+config:
+  aws:region: us-east-1

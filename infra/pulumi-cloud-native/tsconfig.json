@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "bin",
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "pretty": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "files": [
+    "index.ts",
+    "src/config.ts",
+    "src/network.ts",
+    "src/cluster.ts",
+    "src/database.ts",
+    "src/storage.ts",
+    "src/iam.ts",
+    "src/registry.ts",
+    "src/ingress.ts",
+    "src/observability.ts",
+    "src/secrets.ts",
+    "src/app.ts"
+  ]
+}

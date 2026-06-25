@@ -1,0 +1,51 @@
+config:
+  aws:region: us-east-1
+
+  # --- EKS cluster sizing ---------------------------------------------------
+  synergyplus-infra-cloud-native:k8sVersion: "1.30"
+  synergyplus-infra-cloud-native:nodeInstanceType: t3.large    # bootstrap node group (system pods + Karpenter)
+  synergyplus-infra-cloud-native:nodeDesiredCount: 2
+  synergyplus-infra-cloud-native:nodeMinCount: 2
+  synergyplus-infra-cloud-native:nodeMaxCount: 4
+  synergyplus-infra-cloud-native:nodeVolumeSizeGb: 80          # EBS root volume per node
+
+  # --- Karpenter (node autoscaling for RunnerPools) -------------------------
+  # Capacity types Karpenter may provision for CPU-bound EnergyPlus runners.
+  synergyplus-infra-cloud-native:karpenterCapacityTypes: "spot,on-demand"
+
+  # --- Access ---------------------------------------------------------------
+  # CIDR allowed to reach the EKS public API endpoint. Lock this down to your
+  # office / VPN range before `pulumi up`. 0.0.0.0/0 is wide open — dev only.
+  synergyplus-infra-cloud-native:adminCidr: "0.0.0.0/0"
+
+  # --- Aurora PostgreSQL (Serverless v2) ------------------------------------
+  synergyplus-infra-cloud-native:pgUser: "synergy"
+  synergyplus-infra-cloud-native:pgDatabase: "synergy"
+  synergyplus-infra-cloud-native:auroraMinAcu: "0.5"           # min Aurora Capacity Units (0.5 = ~1GB)
+  synergyplus-infra-cloud-native:auroraMaxAcu: "8"             # max ACUs the writer/readers scale to
+  synergyplus-infra-cloud-native:auroraReplicas: "1"           # reader instances (Multi-AZ failover target)
+  synergyplus-infra-cloud-native:auroraBackupRetentionDays: "7"
+
+  # --- Container images (ECR) -----------------------------------------------
+  # Image tag the manifests should pull. CI pushes to the ECR repos this stack
+  # creates (or via an ECR pull-through cache from GHCR — see README).
+  synergyplus-infra-cloud-native:imageTag: "latest"
+
+  # --- DNS / TLS / email ----------------------------------------------------
+  # Public hosted zone (Route53) and the FQDN the ALB serves. ACM issues the
+  # cert for `domain`; ExternalDNS creates the A/ALIAS record.
+  synergyplus-infra-cloud-native:domain: "synergyplus.example.com"
+  synergyplus-infra-cloud-native:route53ZoneName: "example.com"
+  # SES verified sender Better Auth sends magic-link / verification mail from.
+  synergyplus-infra-cloud-native:sesFromAddress: "noreply@example.com"
+
+  # --- App config -----------------------------------------------------------
+  synergyplus-infra-cloud-native:allowedEngineVersions: "24.1.0"
+
+  # --- Bring-up toggle ------------------------------------------------------
+  # When false, Pulumi provisions ONLY the AWS infra (VPC / EKS / Aurora / S3 /
+  # ECR / IRSA / Secrets Manager / AMP / ACM). Flip to true to also install the
+  # in-cluster controllers (Karpenter, KEDA, AWS LB Controller, ExternalDNS,
+  # External Secrets, ADOT/Fluent Bit) + the SynergyPlus app wiring via the
+  # kubernetes provider.
+  synergyplus-infra-cloud-native:deployApp: "false"
