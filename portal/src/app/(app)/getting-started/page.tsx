@@ -22,39 +22,42 @@ curl ${api}/v1/simulations/<id> \\
 curl ${api}/v1/results/<id> \\
   -H "Authorization: Bearer $SYNERGY_API_KEY"`;
 
-  const pySubmit = `from synergy import Client  # pip install synergyplus-sdk
+  const pySubmit = `from synergyplus import SynergyClient  # pip install synergyplus
 
-client = Client(
-    base_url="${api}",
-    api_key="sp_live_...",   # or env SYNERGY_API_KEY
-)
+# API key only — local files upload automatically via presigned URLs
+# (no S3 credentials needed).
+sp = SynergyClient("${api}", token="sp_live_...")   # or env SYNERGY_API_KEY
 
-sim = client.submit_simulation(
+# Pass local paths: the SDK uploads them for you, content-addressed by
+# sha256 (an identical file already on the platform is a cache hit).
+sim = sp.submit_simulation(
     engine_version="24.1.0",
-    model={"ref": "s3://models/sample.idf", "sha256": model_sha256},
-    weather={"ref": "s3://weather/sample.epw", "sha256": weather_sha256},
+    model="./tower.idf",        # local path → uploaded automatically
+    weather="./chicago.epw",    # local path → uploaded automatically
     priority=1,
 )
-print("submitted:", sim.id, sim.state)
+print("submitted:", sim["id"], sim["state"])
 
-result = client.wait(sim.id)          # blocks until succeeded/failed
-print(result.verdict, result.metrics["site_eui"])`;
+sp.wait(sim["id"])                       # blocks until succeeded/failed
+print(sp.get_metrics(sim["id"])["site_eui"])
 
-  const pyBatch = `# Submit a parameter sweep as one batch (≤100 variants expands synchronously)
-batch = client.submit_batch(
+sp.download_results(sim["id"], "./out")  # pull artifacts (.csv, .err, ...) locally`;
+
+  const pyBatch = `from synergyplus import Variant
+
+# A parameter sweep as one batch — variant models can be local paths too.
+# A model repeated across variants is hashed + uploaded only once.
+batch = sp.submit_batch(
     engine_version="24.1.0",
-    weather={"ref": "s3://weather/sample.epw", "sha256": weather_sha256},
-    variants=[
-        {"model": {"ref": f"s3://models/v{i}.idf", "sha256": shas[i]}, "name": f"v{i}"}
-        for i in range(20)
-    ],
+    weather="./chicago.epw",
+    variants=[Variant(model=f"./variants/v{i}.idf", name=f"v{i}") for i in range(20)],
     priority=1,
     idempotency_key="sweep-2026-06-24",
 )
-print(batch.batch_id, batch.state)
+print(batch["batchId"], batch["state"])
 
-status = client.get_batch(batch.batch_id)
-print(f"{status.succeeded}/{status.total} done, {status.failed} failed")`;
+status = sp.get_batch(batch["batchId"])
+print(f'{status["succeeded"]}/{status["total"]} done, {status["failed"]} failed')`;
 
   return (
     <div className="space-y-9">
@@ -108,7 +111,7 @@ print(f"{status.succeeded}/{status.total} done, {status.failed} failed")`;
       <Section
         step="5"
         title="Python SDK"
-        body="The SDK wraps submit / get / wait so you can script sweeps end-to-end."
+        body="Point the SDK at local .idf/.epw files — it uploads them for you (presigned URLs, just your API key) and wraps submit / wait / results so you can script sweeps end-to-end."
       >
         <div className="space-y-4">
           <CodeBlock title="python — single run" code={pySubmit} />
