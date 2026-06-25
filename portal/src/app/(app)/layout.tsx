@@ -11,10 +11,12 @@ export default async function AppLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar email={user.email} name={user.name} />
       <main className="flex-1 overflow-x-hidden">
-        <div className="mx-auto max-w-4xl px-8 py-10">{children}</div>
+        <div className="mx-auto max-w-4xl px-5 py-8 md:px-8 md:py-10">
+          {children}
+        </div>
       </main>
     </div>
   );
