@@ -49,36 +49,21 @@ func (r *Reaper) Run(ctx context.Context) {
 	}
 }
 
-// sweep performs one reap pass inside a transaction. Rows with an expired
-// running lease and attempts remaining are requeued; the rest are failed.
-// Returns the total number of rows acted on (requeued + failed).
+// sweep performs one reap pass. Rows with an expired running lease and attempts
+// remaining are requeued; the rest are failed. Returns the total number of rows
+// acted on (requeued + failed).
 //
-// CONTRACT §2.3:
+// ADR-0013: the two transitions are owned by the guarded SQL function
+// app.reap_expired_leases (migration 0007), which enforces the from-state and is
+// expiry-based (no runner_id fence). CONTRACT §2.3:
 //   - attempts < max_attempts → state='queued', runner_id=null, lease_expires_at=null
 //   - else                    → state='failed', error='lease expired', finished_at=now()
 func (r *Reaper) sweep(ctx context.Context) (int64, error) {
-	tx, err := r.store.Pool.Begin(ctx)
-	if err != nil {
+	var requeued, failed int64
+	if err := r.store.Pool.QueryRow(ctx,
+		`SELECT requeued, failed FROM app.reap_expired_leases()`,
+	).Scan(&requeued, &failed); err != nil {
 		return 0, err
 	}
-	defer tx.Rollback(ctx)
-
-	requeue, err := tx.Exec(ctx, `
-		UPDATE app.simulations
-		   SET state='queued', runner_id=NULL, lease_expires_at=NULL
-		 WHERE state='running' AND lease_expires_at < now() AND attempts < max_attempts`)
-	if err != nil {
-		return 0, err
-	}
-	fail, err := tx.Exec(ctx, `
-		UPDATE app.simulations
-		   SET state='failed', error='lease expired', finished_at=now()
-		 WHERE state='running' AND lease_expires_at < now() AND attempts >= max_attempts`)
-	if err != nil {
-		return 0, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return 0, err
-	}
-	return requeue.RowsAffected() + fail.RowsAffected(), nil
+	return requeued + failed, nil
 }
