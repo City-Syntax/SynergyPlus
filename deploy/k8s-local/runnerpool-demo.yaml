@@ -1,0 +1,17 @@
+# Laptop-sized RunnerPool for the local k8s demo. The operator reconciles this into
+# a runner Deployment + a KEDA ScaledObject that scales 0..maxReplicas on the
+# eligible queue depth. (config/samples/runnerpool.yaml is the full-size version.)
+apiVersion: synergyplus.io/v1
+kind: RunnerPool
+metadata:
+  name: eplus-24-1-0
+  namespace: synergy-system
+spec:
+  engineVersion: "24.1.0"
+  image: ghcr.io/synergyplus/energyplus-runner:24.1.0
+  resources:
+    cpu: "100m"        # small so KEDA can fan out several runners on a laptop
+    memory: "256Mi"
+  minReplicas: 0       # scale-to-zero when the queue is empty
+  maxReplicas: 6
+  defaultUserConcurrency: 50

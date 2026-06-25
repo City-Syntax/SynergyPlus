@@ -1,0 +1,40 @@
+[project]
+name = "synergyplus"
+version = "0.2.0"
+description = "Python client for the SynergyPlus distributed EnergyPlus runner."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "SynergyPlus contributors", email = "tanryan777@gmail.com" },
+]
+keywords = ["energyplus", "simulation", "building-energy", "sdk", "client"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# Needed only for SynergyClient.upload_input (imported lazily otherwise).
+s3 = ["boto3>=1.34"]
+
+[project.urls]
+Homepage = "https://github.com/City-Syntax/SynergyPlus"
+Repository = "https://github.com/City-Syntax/SynergyPlus"
+Issues = "https://github.com/City-Syntax/SynergyPlus/issues"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["synergyplus"]

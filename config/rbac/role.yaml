@@ -1,0 +1,42 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: synergyplus-operator
+rules:
+  - apiGroups: ["synergyplus.io"]
+    resources: ["runnerpools"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["synergyplus.io"]
+    resources: ["runnerpools/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["synergyplus.io"]
+    resources: ["runnerpools/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["keda.sh"]
+    resources: ["scaledobjects"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: synergyplus-operator
+  namespace: synergy-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: synergyplus-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: synergyplus-operator
+subjects:
+  - kind: ServiceAccount
+    name: synergyplus-operator
+    namespace: synergy-system

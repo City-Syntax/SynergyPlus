@@ -1,0 +1,31 @@
+# Sample KEDA ScaledObject for a RunnerPool. The operator generates an
+# equivalent object per RunnerPool (internal/controller/runnerpool_controller.go);
+# this file documents the shape and lets you apply one by hand for testing.
+#
+# The trigger uses the eligible-depth query: the claim predicate from
+# CONTRACT §2.2 WITHOUT the UPDATE — a count of claimable queued Simulations for
+# this engine version, respecting the per-User concurrency cap (ADR-0005). This
+# keeps the scaler and the Runner's claim query in agreement: KEDA only scales up
+# for work a Runner could actually claim, never for over-cap work.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: runner-eplus-24-1-0
+  namespace: synergy-system
+  labels:
+    synergyplus.io/pool: eplus-24-1-0
+spec:
+  scaleTargetRef:
+    name: runner-eplus-24-1-0   # the operator-managed Deployment
+  minReplicaCount: 0
+  maxReplicaCount: 200
+  triggers:
+    - type: postgresql
+      metadata:
+        connectionFromEnv: DATABASE_URL
+        targetQueryValue: "1"
+        query: >-
+          SELECT count(*) FROM app.simulations s2
+          WHERE s2.state='queued' AND s2.engine_version='24.1.0'
+            AND (SELECT count(*) FROM app.simulations r
+                 WHERE r.user_id=s2.user_id AND r.state='running') < 50

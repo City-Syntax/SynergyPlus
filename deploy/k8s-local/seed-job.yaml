@@ -1,0 +1,18 @@
+# Seeds buckets + sample model/weather + demo user & dev API key. Run AFTER the
+# apiserver has applied migrations (the Makefile target waits for that).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: synergyplus-seed
+  namespace: synergy-system
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: ghcr.io/synergyplus/seed:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef: { name: synergyplus-env }

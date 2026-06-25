@@ -1,0 +1,39 @@
+# In-cluster Postgres for the local k8s demo (ephemeral — emptyDir). In AWS this
+# is RDS/Aurora; the apiserver applies migrations on boot either way.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: synergy-system
+  labels: { app: postgres }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: POSTGRES_USER, value: synergy }
+            - { name: POSTGRES_PASSWORD, value: synergy }
+            - { name: POSTGRES_DB, value: synergy }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports: [{ containerPort: 5432 }]
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "synergy", "-d", "synergy"] }
+            initialDelaySeconds: 5
+            periodSeconds: 3
+      volumes: [{ name: data, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: synergy-system
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]

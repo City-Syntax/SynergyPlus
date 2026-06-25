@@ -1,0 +1,7 @@
+bin/
+.git/
+.agents/
+docs/
+sdk/
+**/__pycache__/
+*.md

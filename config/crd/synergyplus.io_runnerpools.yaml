@@ -1,0 +1,202 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: runnerpools.synergyplus.io
+spec:
+  group: synergyplus.io
+  names:
+    kind: RunnerPool
+    listKind: RunnerPoolList
+    plural: runnerpools
+    shortNames:
+    - rp
+    singular: runnerpool
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.engineVersion
+      name: Version
+      type: string
+    - jsonPath: .spec.minReplicas
+      name: Min
+      type: integer
+    - jsonPath: .spec.maxReplicas
+      name: Max
+      type: integer
+    - jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - jsonPath: .status.eligibleQueued
+      name: Eligible
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          RunnerPool is the only SynergyPlus CRD (ADR-0006): a per-version pool of
+          EnergyPlus Runners, reconciled into a Deployment + a KEDA ScaledObject.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              RunnerPoolSpec is the desired state of a per-EngineVersion pool of Runners
+              (PROPOSAL §7.1). The spec is low-churn policy: which version exists, which
+              image serves it, and the [min,max] replica bounds KEDA scales within. KEDA
+              moves the live replica count from the queue; the spec is never rewritten per
+              queue event.
+            properties:
+              defaultUserConcurrency:
+                default: 50
+                description: |-
+                  DefaultUserConcurrency is the per-User concurrency cap this pool enforces
+                  (SP_PER_USER_CAP). It is also the cap used by the KEDA eligible-depth
+                  trigger so scaler and claimer agree (ADR-0005).
+                format: int32
+                minimum: 1
+                type: integer
+              engineVersion:
+                description: |-
+                  EngineVersion is the EnergyPlus release this pool serves, e.g. "24.1.0".
+                  It is passed to Runners as SP_ENGINE_VERSION and is the engine_version
+                  claimed against in the queue.
+                type: string
+              image:
+                description: |-
+                  Image is the immutable, digest-pinned Runner image for this version,
+                  e.g. ghcr.io/synergyplus/energyplus-runner:24.1.0.
+                type: string
+              maxReplicas:
+                default: 200
+                description: MaxReplicas is the ceiling KEDA may scale this pool to.
+                format: int32
+                minimum: 1
+                type: integer
+              minReplicas:
+                default: 0
+                description: |-
+                  MinReplicas is the warm floor. Default 0 (scale-to-zero); raise it if
+                  first-run latency on a cold pool bites (ADR-0005).
+                format: int32
+                minimum: 0
+                type: integer
+              resources:
+                description: |-
+                  Resources is the compute request for a single Runner pod. EnergyPlus is
+                  single-threaded, so CPU defaults to one core.
+                properties:
+                  cpu:
+                    default: "1"
+                    type: string
+                  memory:
+                    default: 2Gi
+                    type: string
+                type: object
+            required:
+            - engineVersion
+            - image
+            type: object
+          status:
+            description: |-
+              RunnerPoolStatus is the observed state of a RunnerPool. eligibleQueued is
+              surfaced on a throttled interval, never per queue event (PROPOSAL §7.1).
+            properties:
+              conditions:
+                description: Conditions follows the standard Kubernetes condition
+                  convention.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              eligibleQueued:
+                description: |-
+                  EligibleQueued is the count of claimable queued Simulations for this
+                  version (the KEDA trigger's eligibility predicate), surfaced throttled.
+                format: int32
+                type: integer
+              readyReplicas:
+                description: ReadyReplicas mirrors the backing Deployment's ready
+                  replicas.
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

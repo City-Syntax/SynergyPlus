@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: synergy-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synergyplus-operator
+  namespace: synergy-system
+  labels: { app: synergyplus-operator }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: synergyplus-operator }
+  template:
+    metadata:
+      labels: { app: synergyplus-operator }
+    spec:
+      serviceAccountName: synergyplus-operator
+      containers:
+        - name: operator
+          image: ghcr.io/synergyplus/operator:latest
+          imagePullPolicy: IfNotPresent   # use locally-built image (OrbStack/no registry)
+          args:
+            - --leader-elect
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=:8080
+          # CONTRACT §6: the operator passes these through to Runner pods it
+          # creates for each RunnerPool. Wire to a Secret in a real install.
+          envFrom:
+            - secretRef: { name: synergyplus-env }
+          ports:
+            - { name: metrics, containerPort: 8080 }
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8081 }
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8081 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synergyplus-apiserver
+  namespace: synergy-system
+  labels: { app: synergyplus-apiserver }
+spec:
+  replicas: 1   # NB: Reaper+Expander run in-process; >1 needs leader election (see gap analysis)
+  selector:
+    matchLabels: { app: synergyplus-apiserver }
+  template:
+    metadata:
+      labels: { app: synergyplus-apiserver }
+    spec:
+      serviceAccountName: synergyplus-operator
+      containers:
+        - name: apiserver
+          image: ghcr.io/synergyplus/apiserver:latest
+          imagePullPolicy: IfNotPresent   # use locally-built image (OrbStack/no registry)
+          # CONTRACT §6: DATABASE_URL is required; APISERVER_ADDR/SP_PER_USER_CAP
+          # have defaults. Migrations are baked into the image at /app/db/migrations.
+          envFrom:
+            - secretRef: { name: synergyplus-env }
+          env:
+            - { name: APISERVER_ADDR, value: ":8090" }
+          ports:
+            - { name: http, containerPort: 8090 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8090 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synergyplus-apiserver
+  namespace: synergy-system
+spec:
+  selector: { app: synergyplus-apiserver }
+  ports:
+    - { name: http, port: 80, targetPort: 8090 }

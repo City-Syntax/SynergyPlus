@@ -1,0 +1,133 @@
+# SynergyPlus — local runtime (primary "runs locally" path).
+#
+#   docker compose -f deploy/docker-compose.yml up --build
+#   docker compose -f deploy/docker-compose.yml up --build --scale runner=4
+#
+# Brings up: Postgres (queue+index+cache+auth), MinIO (object store), the Go
+# apiserver (API + Expander + Reaper), N Python runners (FAKE engine by default so
+# no multi-GB EnergyPlus image is needed), the seed job, and the TS dev portal.
+
+name: synergyplus
+
+x-db-env: &db-env
+  DATABASE_URL: postgres://synergy:synergy@postgres:5432/synergy?sslmode=disable
+
+x-s3-env: &s3-env
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY: synergy
+  S3_SECRET_KEY: synergypass
+  S3_BUCKET_MODELS: models
+  S3_BUCKET_WEATHER: weather
+  S3_BUCKET_RESULTS: results
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: synergy
+      POSTGRES_PASSWORD: synergy
+      POSTGRES_DB: synergy
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synergy -d synergy"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: synergy
+      MINIO_ROOT_PASSWORD: synergypass
+    ports: ["9000:9000", "9001:9001"]   # 9000 API, 9001 console
+    volumes: ["miniodata:/data"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 4s
+      timeout: 3s
+      retries: 20
+
+  apiserver:
+    build:
+      context: ..
+      dockerfile: Dockerfile.apiserver
+    environment:
+      <<: [*db-env, *s3-env]
+      APISERVER_ADDR: ":8090"
+      MIGRATIONS_DIR: /app/db/migrations
+      SP_ALLOWED_ENGINE_VERSIONS: "24.1.0"   # M-1: reject unknown versions with 400
+    ports: ["8090:8090"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # The distroless apiserver has no shell/wget for a container healthcheck, so we
+  # gate dependents on this probe instead: it blocks until the apiserver has applied
+  # the migrations (i.e. the app + auth tables exist).
+  schema-ready:
+    image: postgres:16-alpine
+    environment:
+      <<: *db-env
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        until psql "$$DATABASE_URL" -c 'select 1 from app.api_keys limit 1' >/dev/null 2>&1 \
+          && psql "$$DATABASE_URL" -c 'select 1 from auth."user" limit 1' >/dev/null 2>&1; do
+          echo 'waiting for migrations...'; sleep 2;
+        done; echo 'schema ready'
+    depends_on:
+      apiserver: { condition: service_started }
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  # One-shot: create buckets, upload a sample model+weather, insert demo user +
+  # the known dev API key 'synergy-dev-key'. Runs after the schema exists.
+  seed:
+    image: python:3.12-slim
+    working_dir: /seed
+    volumes: ["./seed:/seed"]
+    environment:
+      <<: [*db-env, *s3-env]
+    command: ["sh", "-c", "pip install --quiet 'psycopg[binary]' boto3 && python seed.py"]
+    depends_on:
+      schema-ready: { condition: service_completed_successfully }
+      minio: { condition: service_healthy }
+    restart: "no"
+
+  runner:
+    build:
+      context: ../runner
+      dockerfile: Dockerfile
+    environment:
+      <<: [*db-env, *s3-env]
+      SP_ENGINE_VERSION: "24.1.0"
+      SP_LEASE_SECONDS: "90"
+      SP_HEARTBEAT_SECONDS: "30"
+      SP_PER_USER_CAP: "50"
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      seed: { condition: service_completed_successfully }
+
+  portal:
+    build:
+      context: ../portal
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8090
+    environment:
+      <<: *db-env
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8090
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: dev-secret-change-me-to-a-long-random-string
+      PORTAL_DEV_LOGIN: "1"
+    ports: ["3000:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      schema-ready: { condition: service_completed_successfully }   # auth schema migrated first
+
+volumes:
+  pgdata:
+  miniodata:

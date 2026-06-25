@@ -1,0 +1,27 @@
+# Kubebuilder project metadata. Hand-authored to match conventions; regenerate
+# with `kubebuilder` once the CLI is available.
+domain: synergyplus.io
+layout:
+  - go.kubebuilder.io/v4
+projectName: synergyplus
+repo: github.com/synergyplus/synergyplus
+resources:
+  - api:
+      crdVersion: v1
+      namespaced: true
+    controller: true
+    domain: synergyplus.io
+    group: synergyplus
+    kind: Simulation
+    path: github.com/synergyplus/synergyplus/api/v1
+    version: v1
+  - api:
+      crdVersion: v1
+      namespaced: true
+    controller: true
+    domain: synergyplus.io
+    group: synergyplus
+    kind: SimulationBatch
+    path: github.com/synergyplus/synergyplus/api/v1
+    version: v1
+version: "3"

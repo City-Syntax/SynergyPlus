@@ -1,0 +1,17 @@
+# Build the SynergyPlus API gateway (apiserver).
+FROM golang:1.25 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY api/ api/
+COPY internal/ internal/
+COPY cmd/ cmd/
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/apiserver ./cmd/apiserver
+
+FROM gcr.io/distroless/static:nonroot
+# Migrations are applied on boot from /app/db/migrations (MIGRATIONS_DIR default).
+COPY db/migrations/ /app/db/migrations/
+COPY --from=build /out/apiserver /apiserver
+USER 65532:65532
+EXPOSE 8090
+ENTRYPOINT ["/apiserver"]

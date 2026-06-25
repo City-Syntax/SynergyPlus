@@ -1,0 +1,21 @@
+# Go
+/bin/
+*.test
+*.out
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local kube/scratch
+kubeconfig
+*.local.yaml
