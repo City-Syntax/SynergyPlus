@@ -34,17 +34,22 @@ except ImportError:  # fall back to psycopg2
 
 # CONTRACT §2.2 — the one true claim query. Params: runner_id, engine_version,
 # per_user_cap, lease_seconds.
+#
+# ADR-0011: the eligibility PREDICATE + ORDERING now live in the Postgres function
+# app.eligible_simulations (migration 0006). This SQL keeps the lock target, the
+# ordering, and the LIMIT. The function is used purely as a MEMBERSHIP GATE: it is
+# JOINed to the base table so the row lock stays on app.simulations s2. Locking
+# `FROM app.eligible_simulations(...) FOR UPDATE` is a silent no-op on PG16 (no
+# LockRows node -> double-claims), so we MUST NOT lock the function's output.
 CLAIM_SQL = """
 UPDATE app.simulations s
 SET state='running', runner_id=%(runner_id)s, started_at=now(),
     lease_expires_at=now()+make_interval(secs => %(lease_seconds)s), attempts=attempts+1
 WHERE s.id = (
   SELECT s2.id FROM app.simulations s2
-  WHERE s2.state='queued' AND s2.engine_version=%(engine_version)s
-    AND (SELECT count(*) FROM app.simulations r
-         WHERE r.user_id=s2.user_id AND r.state='running') < %(per_user_cap)s
+  JOIN app.eligible_simulations(%(engine_version)s, %(per_user_cap)s) e ON e.id = s2.id
   ORDER BY s2.priority DESC, s2.created_at ASC
-  FOR UPDATE SKIP LOCKED
+  FOR UPDATE OF s2 SKIP LOCKED
   LIMIT 1
 )
 RETURNING s.*;

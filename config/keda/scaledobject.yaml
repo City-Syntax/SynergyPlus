@@ -7,6 +7,11 @@
 # this engine version, respecting the per-User concurrency cap (ADR-0005). This
 # keeps the scaler and the Runner's claim query in agreement: KEDA only scales up
 # for work a Runner could actually claim, never for over-cap work.
+#
+# ADR-0011: the predicate + ordering live in the Postgres function
+# app.eligible_simulations(engine_version, user_cap) (db/migrations/0006). The
+# query below just counts its rows; the literal '24.1.0'/50 are this sample's
+# engine version and per-User cap (the operator substitutes the pool's values).
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -25,7 +30,4 @@ spec:
         connectionFromEnv: DATABASE_URL
         targetQueryValue: "1"
         query: >-
-          SELECT count(*) FROM app.simulations s2
-          WHERE s2.state='queued' AND s2.engine_version='24.1.0'
-            AND (SELECT count(*) FROM app.simulations r
-                 WHERE r.user_id=s2.user_id AND r.state='running') < 50
+          SELECT count(*) FROM app.eligible_simulations('24.1.0', 50)
