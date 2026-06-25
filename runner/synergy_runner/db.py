@@ -35,46 +35,52 @@ except ImportError:  # fall back to psycopg2
 # CONTRACT §2.2 — the one true claim query. Params: runner_id, engine_version,
 # per_user_cap, lease_seconds.
 #
-# ADR-0011: the eligibility PREDICATE + ORDERING now live in the Postgres function
-# app.eligible_simulations (migration 0006). This SQL keeps the lock target, the
-# ordering, and the LIMIT. The function is used purely as a MEMBERSHIP GATE: it is
-# JOINed to the base table so the row lock stays on app.simulations s2. Locking
-# `FROM app.eligible_simulations(...) FOR UPDATE` is a silent no-op on PG16 (no
-# LockRows node -> double-claims), so we MUST NOT lock the function's output.
+# ADR-0013: the queued->running transition now lives behind the guarded Postgres
+# function app.claim_simulation (migration 0007). The function owns the legal
+# from-state, the eligibility membership gate (ADR-0011), the base-table row lock,
+# the ordering/LIMIT, AND the H-2 hard-ceiling advisory lock (key 42) — so a caller
+# cannot express an illegal transition. We still wrap the call in an explicit
+# BEGIN/COMMIT: the function takes pg_advisory_xact_lock(42) inside the CALLER's
+# transaction, which is released on COMMIT, so the lock+claim must stay in one txn
+# (the connection is otherwise autocommit). RETURNING SETOF -> at most one row.
 CLAIM_SQL = """
-UPDATE app.simulations s
-SET state='running', runner_id=%(runner_id)s, started_at=now(),
-    lease_expires_at=now()+make_interval(secs => %(lease_seconds)s), attempts=attempts+1
-WHERE s.id = (
-  SELECT s2.id FROM app.simulations s2
-  JOIN app.eligible_simulations(%(engine_version)s, %(per_user_cap)s) e ON e.id = s2.id
-  ORDER BY s2.priority DESC, s2.created_at ASC
-  FOR UPDATE OF s2 SKIP LOCKED
-  LIMIT 1
+SELECT * FROM app.claim_simulation(
+  %(runner_id)s, %(engine_version)s, %(per_user_cap)s, %(lease_seconds)s
 )
-RETURNING s.*;
 """
 
-# CONTRACT §2.3 — heartbeat (renew the lease while still owning the row).
+# CONTRACT §2.3 — heartbeat (renew the lease while still owning the row). The
+# from-state, the M-4 runner_id fence, and the lease bump are owned by the guarded
+# function app.renew_lease (ADR-0013); it returns rows affected.
 HEARTBEAT_SQL = """
-UPDATE app.simulations
-SET lease_expires_at = now() + make_interval(secs => %(lease_seconds)s)
-WHERE id = %(sim_id)s AND runner_id = %(runner_id)s
+SELECT app.renew_lease(%(sim_id)s, %(runner_id)s, %(lease_seconds)s)
 """
 
-# H-2: make the per-user cap a HARD ceiling. The cap predicate in CLAIM_SQL is a
-# count-then-claim that is racy across runners (TOCTOU) — N runners each read
-# `count < cap` before any of them locks, so the cap overshoots by up to N-1.
-# Serialise the count+claim with a single global transaction-scoped advisory
-# lock so claims can't interleave. Claims are sub-millisecond, so global
-# serialisation is fine at our scale.
-CLAIM_LOCK_KEY = 42
+# ADR-0013 — the terminal running->succeeded|failed transition. The from-state,
+# the M-4 runner_id fence, the lease clear, and the success/failure mapping are
+# owned by the guarded function app.finish_simulation; it returns rows affected.
+FINISH_SQL = """
+SELECT app.finish_simulation(%(sim_id)s, %(runner_id)s, %(succeeded)s, %(error)s)
+"""
 
 
 def _dict_cursor(conn):
     if _DRIVER == "psycopg2":
         return conn.cursor(cursor_factory=_pg_extras.RealDictCursor)
     return conn.cursor()
+
+
+def _scalar(row: Any) -> int:
+    """Extract the single int a function-returning SELECT yields.
+
+    psycopg3's default connection uses dict_row, so a one-column row arrives as
+    a dict; psycopg2's plain cursor yields a tuple. Handle both (None -> 0).
+    """
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return int(next(iter(row.values())))
+    return int(row[0])
 
 
 class Database:
@@ -110,15 +116,14 @@ class Database:
             "per_user_cap": per_user_cap,
             "lease_seconds": lease_seconds,
         }
-        # H-2: take a transaction-scoped advisory lock so the cap count+claim is
-        # atomic across runners. pg_advisory_xact_lock is released on COMMIT, so
-        # the lock and the UPDATE MUST live in the same explicit transaction
-        # (the connection is otherwise autocommit). The lock serialises only the
-        # ~sub-ms claim, never the actual simulation run.
+        # H-2: app.claim_simulation takes pg_advisory_xact_lock(42) so the cap
+        # count+claim is atomic across runners. The lock is transaction-scoped and
+        # released on COMMIT, so the function call MUST live in an explicit
+        # transaction (the connection is otherwise autocommit) for the hard cap to
+        # hold. The lock serialises only the ~sub-ms claim, never the actual run.
         cur = _dict_cursor(self.conn)
         try:
             cur.execute("BEGIN")
-            cur.execute("SELECT pg_advisory_xact_lock(%s)", (CLAIM_LOCK_KEY,))
             cur.execute(CLAIM_SQL, params)
             row = cur.fetchone()
             cur.execute("COMMIT")
@@ -135,14 +140,15 @@ class Database:
     # -- heartbeat -----------------------------------------------------------
 
     def heartbeat(self, *, sim_id: str, runner_id: str, lease_seconds: int) -> int:
+        # app.renew_lease owns the from-state + M-4 fence and returns rows affected.
         cur = self.conn.cursor()
         cur.execute(
             HEARTBEAT_SQL,
             {"sim_id": sim_id, "runner_id": runner_id, "lease_seconds": lease_seconds},
         )
-        n = cur.rowcount
+        row = cur.fetchone()
         cur.close()
-        return n
+        return _scalar(row)
 
     # -- content-hash back-fill (CONTRACT §2.1) ------------------------------
 
@@ -212,21 +218,20 @@ class Database:
     def finish_simulation(
         self, *, sim_id: str, runner_id: str, succeeded: bool, error: Optional[str] = None
     ) -> int:
-        # M-4: fence the terminal write on runner_id (same guard heartbeat uses).
-        # If the reaper requeued this sim and another runner already claimed and
-        # finished it, a late-waking zombie of the original runner must NOT
-        # clobber the new owner's row. Returns rows affected (0 = lost the fence).
-        state = "succeeded" if succeeded else "failed"
+        # M-4: app.finish_simulation owns the from-state + the runner_id fence. If
+        # the reaper requeued this sim and another runner already claimed and
+        # finished it, a late-waking zombie of the original runner must NOT clobber
+        # the new owner's row. Returns rows affected (0 = lost the fence).
         cur = self.conn.cursor()
         cur.execute(
-            """
-            UPDATE app.simulations
-            SET state = %(state)s, finished_at = now(), error = %(error)s,
-                lease_expires_at = NULL
-            WHERE id = %(id)s AND runner_id = %(runner_id)s
-            """,
-            {"state": state, "error": error, "id": sim_id, "runner_id": runner_id},
+            FINISH_SQL,
+            {
+                "sim_id": sim_id,
+                "runner_id": runner_id,
+                "succeeded": succeeded,
+                "error": error,
+            },
         )
-        n = cur.rowcount
+        row = cur.fetchone()
         cur.close()
-        return n
+        return _scalar(row)
