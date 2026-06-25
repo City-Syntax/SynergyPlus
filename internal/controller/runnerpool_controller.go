@@ -162,9 +162,10 @@ func (r *RunnerPoolReconciler) reconcileScaledObject(ctx context.Context, pool *
 
 	// The KEDA trigger uses the eligible-depth query: the claim predicate from
 	// CONTRACT §2.2 WITHOUT the UPDATE (count of claimable rows for this version).
-	eligibleQuery := fmt.Sprintf(`SELECT count(*) FROM app.simulations s2 `+
-		`WHERE s2.state='queued' AND s2.engine_version='%s' `+
-		`AND (SELECT count(*) FROM app.simulations r WHERE r.user_id=s2.user_id AND r.state='running') < %d`,
+	// ADR-0011: the predicate now lives in app.eligible_simulations (migration
+	// 0006); count its rows so the scaler and the Runner's claim stay in lockstep.
+	eligibleQuery := fmt.Sprintf(
+		`SELECT count(*) FROM app.eligible_simulations('%s', %d)`,
 		pool.Spec.EngineVersion, userCap)
 
 	so := &unstructured.Unstructured{}
