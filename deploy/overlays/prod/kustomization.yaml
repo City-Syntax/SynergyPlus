@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Production overlay for deploying to EKS (SynergyPlusIAC stack).
+#
+# The base (config/) carries LOCAL-dev image tags (ghcr.io/synergyplus/*) that
+# `make k8s-images` builds for OrbStack and the manifests pull with
+# imagePullPolicy: IfNotPresent. That flow must keep working, so we do NOT edit
+# the base refs in place — this overlay remaps the operator + apiserver to the
+# real images published by .github/workflows/release-images.yml
+# (ghcr.io/city-syntax/synergyplus-*). The portal already references its
+# published image directly in the base.
+#
+# (The overlay lives under deploy/ rather than config/ because a kustomize
+# overlay may not sit inside its own base directory.)
+#
+# Deploy:  kubectl apply -k deploy/overlays/prod
+#
+# RUNNER IMAGE (not remappable here): runner pods are created by the operator
+# from RunnerPool CRs, and the operator defaults to
+# ghcr.io/synergyplus/energyplus-runner:<engineVersion> (a const, ADR-0015).
+# kustomize's image transformer only touches PodSpec images, not CRD fields, so
+# in production each RunnerPool MUST set spec.image to the published runner:
+#     spec:
+#       engineVersion: "24.1.0"
+#       image: ghcr.io/city-syntax/synergyplus-runner:24.1.0
+
+resources:
+  - ../../../config # the config/ base kustomization
+
+images:
+  - name: ghcr.io/synergyplus/operator
+    newName: ghcr.io/city-syntax/synergyplus-operator
+  - name: ghcr.io/synergyplus/apiserver
+    newName: ghcr.io/city-syntax/synergyplus-apiserver
