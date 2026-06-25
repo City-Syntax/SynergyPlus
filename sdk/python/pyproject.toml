@@ -1,6 +1,6 @@
 [project]
 name = "synergyplus"
-version = "0.3.0"
+version = "0.3.1"
 description = "Python client for the SynergyPlus distributed EnergyPlus runner."
 readme = "README.md"
 requires-python = ">=3.9"
