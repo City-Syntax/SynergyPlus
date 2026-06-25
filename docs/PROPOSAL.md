@@ -195,7 +195,7 @@ kind: RunnerPool
 metadata: { name: eplus-24-1-0, namespace: synergy-system }
 spec:
   engineVersion: "24.1.0"
-  image: ghcr.io/synergyplus/energyplus-runner:24.1.0
+  image: ghcr.io/city-syntax/synergyplus-runner:24.1.0
   resources: { cpu: "1", memory: "2Gi" }
   minReplicas: 0          # scale-to-zero default; raise the floor if first-run latency bites
   maxReplicas: 200        # ceiling

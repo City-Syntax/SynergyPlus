@@ -95,7 +95,7 @@ k8s-undeploy: ## Remove the k8s deployment
 k8s-images: ## Build images with the tags the manifests expect (OrbStack shares the docker image store)
 	docker build -f Dockerfile.operator  -t ghcr.io/synergyplus/operator:latest .
 	docker build -f Dockerfile.apiserver -t ghcr.io/synergyplus/apiserver:latest .
-	docker build -f runner/Dockerfile    -t ghcr.io/synergyplus/energyplus-runner:24.1.0 runner/
+	docker build -f runner/Dockerfile    -t ghcr.io/city-syntax/synergyplus-runner:24.1.0 runner/
 	docker build -f deploy/seed/Dockerfile -t ghcr.io/synergyplus/seed:latest deploy/seed/
 
 .PHONY: k8s-local

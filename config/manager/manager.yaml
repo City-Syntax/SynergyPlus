@@ -77,6 +77,11 @@ kind: Service
 metadata:
   name: synergyplus-apiserver
   namespace: synergy-system
+  # ALB target-group health check: apiserver "/" returns 404; its health
+  # endpoint is /healthz (CONTRACT §3). Point the check there so ALB targets
+  # report healthy. (Ignored outside AWS — harmless for local OrbStack.)
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
 spec:
   selector: { app: synergyplus-apiserver }
   ports:

@@ -54,6 +54,11 @@ kind: Service
 metadata:
   name: synergyplus-portal
   namespace: synergy-system
+  # ALB target-group health check: portal "/" 307-redirects to /login, which
+  # fails the default 200-only check on "/". Point the check at /login (200).
+  # (Ignored outside AWS — harmless for the local OrbStack path.)
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /login
 spec:
   selector: { app: synergyplus-portal }
   ports:

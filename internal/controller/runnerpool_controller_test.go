@@ -20,19 +20,19 @@ func TestRunnerImage(t *testing.T) {
 			name:          "empty image derives tag from engineVersion",
 			image:         "",
 			engineVersion: "24.1.0",
-			want:          "ghcr.io/synergyplus/energyplus-runner:24.1.0",
+			want:          "ghcr.io/city-syntax/synergyplus-runner:24.1.0",
 		},
 		{
 			name:          "empty image with a different engineVersion",
 			image:         "",
 			engineVersion: "25.1.0",
-			want:          "ghcr.io/synergyplus/energyplus-runner:25.1.0",
+			want:          "ghcr.io/city-syntax/synergyplus-runner:25.1.0",
 		},
 		{
 			name:          "explicit image is preserved verbatim",
-			image:         "ghcr.io/synergyplus/energyplus-runner:24.1.0",
+			image:         "ghcr.io/city-syntax/synergyplus-runner:24.1.0",
 			engineVersion: "24.1.0",
-			want:          "ghcr.io/synergyplus/energyplus-runner:24.1.0",
+			want:          "ghcr.io/city-syntax/synergyplus-runner:24.1.0",
 		},
 		{
 			name:          "explicit image overrides engineVersion (e.g. pinned digest)",

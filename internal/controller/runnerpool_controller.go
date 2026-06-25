@@ -230,7 +230,7 @@ func deployKey(p *synergyv1.RunnerPool) types.NamespacedName {
 // runnerImageRepo is the canonical Runner image repository. The tag is derived
 // from spec.EngineVersion so the RunnerPool CR remains the single source for
 // Engine Version (ADR-0006/ADR-0015).
-const runnerImageRepo = "ghcr.io/synergyplus/energyplus-runner"
+const runnerImageRepo = "ghcr.io/city-syntax/synergyplus-runner"
 
 // runnerImage resolves the Runner container image for a pool. spec.Image, when
 // set, is honoured verbatim (allowing a pinned digest or an override registry);
