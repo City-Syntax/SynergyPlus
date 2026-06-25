@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base deployable set for SynergyPlus on Kubernetes: the RunnerPool CRD, the
+# operator RBAC, the operator + apiserver (config/manager), and the portal.
+#
+# Image refs here are the LOCAL-dev tags (ghcr.io/synergyplus/*) that
+# `make k8s-images` builds for OrbStack; the production overlay
+# (overlays/prod) remaps them to the published ghcr.io/city-syntax/* images.
+#
+# NOTE: the local `make k8s-local` flow applies subdirs directly with
+# `kubectl apply -f config/manager/` etc., so this kustomization does not affect
+# it. Use `kubectl apply -k config/overlays/prod` for production.
+resources:
+  - crd/synergyplus.io_runnerpools.yaml
+  - rbac/role.yaml
+  - manager/manager.yaml
+  - portal/portal.yaml
