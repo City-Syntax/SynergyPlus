@@ -6,6 +6,12 @@ The name plays on *EnergyPlus* (Synergy + Plus echoes Energy + Plus), and each
 concept is a deliberate, trademark-safe **homage** to the EnergyPlus mark — not
 a reproduction of it.
 
+> **Canonical:** Concept 1 (**Synergy Orbit**) is the official logo.
+> Use `synergyplus.svg` (lockup) and `synergyplus-icon.svg` (mark/favicon);
+> both are copies of `concept-1*.svg`. The portal favicon lives at
+> `portal/src/app/icon.svg` and the wordmark is inlined in
+> `portal/src/components/Logo.tsx`.
+
 ## What we played on (verified from the real EnergyPlus logo)
 
 The current EnergyPlus mark is a lowercase red **`e`** fused with a blue **`+`**

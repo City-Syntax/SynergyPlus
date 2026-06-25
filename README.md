@@ -1,8 +1,11 @@
-# SynergyPlus
+<p align="center">
+  <img src="assets/logo/synergyplus.svg" alt="SynergyPlus" width="440">
+</p>
 
-A Kubernetes-native orchestrator for distributed [EnergyPlus](https://energyplus.net/)
-simulations — queue and run single runs or large parametric sweeps across
-on-prem and cloud capacity from one API.
+<p align="center">
+  A Kubernetes-native orchestrator for distributed <a href="https://energyplus.net/">EnergyPlus</a> simulations —<br>
+  queue and run single runs or large parametric sweeps across on-prem and cloud capacity from one API.
+</p>
 
 ## How it works
 
