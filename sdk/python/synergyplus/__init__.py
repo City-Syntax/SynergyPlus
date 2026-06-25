@@ -1,19 +1,36 @@
 """SynergyPlus Python SDK (CONTRACT §3).
 
-    from synergyplus import SynergyClient, ArtifactRef
+    from synergyplus import SynergyClient
 
-    sp = SynergyClient("http://localhost:8090", token="synergy-dev-key")
+    sp = SynergyClient(
+        "http://localhost:8090", token="synergy-dev-key",
+        s3_endpoint="http://localhost:9000",
+        s3_access_key="synergy", s3_secret_key="synergypass",
+    )
     sim = sp.submit_simulation(
         engine_version="24.1.0",
-        model=ArtifactRef("s3://models/sample/baseline.idf"),
-        weather=ArtifactRef("s3://weather/sample/chicago.epw"),
+        model="./tower.idf",        # local path → uploaded automatically
+        weather="./chicago.epw",
     )
     sp.wait(sim["id"])
-    print(sp.get_results(sim["id"]))
+    sp.download_results(sim["id"], "./out")
+    print(sp.get_metrics(sim["id"]))
+
+``model``/``weather`` also accept ``s3://...`` strings and :class:`ArtifactRef`.
 """
 
 from .client import SynergyClient
-from .models import ArtifactRef, Variant, sha256_file
+from .models import ArtifactRef, Variant, is_local_path, sha256_file
+from .storage import S3StorageBackend, StorageBackend, StorageError
 
-__all__ = ["SynergyClient", "ArtifactRef", "Variant", "sha256_file"]
-__version__ = "0.2.0"
+__all__ = [
+    "SynergyClient",
+    "ArtifactRef",
+    "Variant",
+    "sha256_file",
+    "is_local_path",
+    "StorageBackend",
+    "S3StorageBackend",
+    "StorageError",
+]
+__version__ = "0.3.0"

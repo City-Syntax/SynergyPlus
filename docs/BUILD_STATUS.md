@@ -74,4 +74,26 @@ v0.2 to run locally. Newest at top.
 - Docs finalized: `TESTING.md` (9 scenarios + failure path + known-limitations),
   `QA_REPORT.md` (resolution table), `CONTRACT.md` (new env vars). Legacy `worker/`
   removed (superseded by `runner/`).
-- **DONE.** Stack runs locally via `make up`; full test guide in `TESTING.md`.
+- **DONE (Compose).** Stack runs locally via `make up`; full test guide in `TESTING.md`.
+
+## Milestone — real EnergyPlus + full Kubernetes/KEDA (post-handoff)
+
+- **Fake engine removed entirely** (user request — test the full real system). Runner
+  always execs real `energyplus`; `SP_FAKE_*` gone from runner/operator/compose/secret/docs.
+- **Real EnergyPlus validated** (Eng-Runner): runner image now `FROM` real EnergyPlus,
+  sample = a real ExampleFile (`1ZoneUncontrolled` + Chicago TMY3, `Output:SQLite`).
+  **Found & fixed a real metric-extraction bug** (extractor read table/column names
+  EnergyPlus doesn't emit → null metrics; now reads the real `Site and Source Energy`
+  schema). Real metrics: `site_eui≈354.8`, etc.
+- **Multi-arch runner image** (PM): rewrote `runner/Dockerfile` on `ubuntu:22.04` +
+  arch-matched official EnergyPlus release — native arm64 (OrbStack) AND amd64 (EKS),
+  no QEMU/deadsnakes. Fixed an Ubuntu-pip `UNKNOWN-0.0.0` empty-wheel bug (upgrade pip).
+- **SDK local files** (new agent, v0.3.0): transparent local-path upload on submit +
+  `download_results`/`get_metrics`; boto3 optional; `StorageBackend` seam ready for the
+  production presigned-URL path.
+- **Full k8s path WORKS on OrbStack** (`make k8s-local`). Fixed 2 real manifest bugs:
+  (1) namespace applied after RBAC → create ns first; (2) `--leader-elect` without
+  `coordination.k8s.io/leases` RBAC → operator never reconciled; added the lease rule.
+  Verified: operator reconciles `RunnerPool` → Deployment + KEDA `ScaledObject`; real
+  EnergyPlus runs; **KEDA autoscaled the pool 1→4** on a 12-variant burst, drained in
+  ~10s; real metrics extracted. 16 results / 16 distinct hashes, all real runs.

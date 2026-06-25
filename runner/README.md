@@ -8,25 +8,22 @@ serves a single engine version. It loops:
 **write** the content-addressed result, while a background **heartbeat** thread
 renews its lease.
 
-## Engine modes
+## Engine
 
-| Mode | Env | What it does |
-|---|---|---|
-| **Fake** (demo default) | `SP_FAKE_ENGINE=1` | Writes a synthetic `eplusout.err` and deterministic, plausible Core Metrics derived from the `content_hash`. No EnergyPlus binary needed — the slim `runner/Dockerfile` runs this. Sleeps `SP_FAKE_ENGINE_SECONDS`. |
-| **Real** (default off) | `SP_FAKE_ENGINE` unset/0 | Runs `energyplus -w weather.epw -d out/ -r model.idf`, then extracts Core Metrics from `eplusout.sql` (a SQLite DB; table `TabularDataWithStrings`). Use `runner/Dockerfile.energyplus` (layers the Runner on `nrel/energyplus:${EPLUS_VERSION}`). |
+The Runner always executes the real EnergyPlus binary:
 
-**Only the engine is faked, not the fetch.** Inputs must really exist in object
-storage. `_fetch_input` retries `SP_FETCH_ATTEMPTS` times (`SP_FETCH_RETRY_SECONDS`
-apart) and then **fails the simulation** — a bogus `s3://` ref surfaces as a
-failure instead of silently "succeeding" with synthetic metrics.
+```
+energyplus -w weather.epw -d out/ -r model.idf
+```
 
-### Driving non-clean verdicts (`SP_FAKE_VERDICT`)
+then extracts Core Metrics from `eplusout.sql` (a SQLite DB; table
+`TabularDataWithStrings`, report `AnnualBuildingUtilityPerformanceSummary`). The
+image is built `FROM nrel/energyplus:${EPLUS_VERSION}` (see `runner/Dockerfile`),
+which puts `energyplus` on PATH; `SP_ENERGYPLUS_BIN` overrides the binary name.
 
-The fake engine emits a clean run by default. Set `SP_FAKE_VERDICT` to
-`clean | warnings | severe | fatal` to make it write a matching `eplusout.err`
-(e.g. a `** Severe  **` / `**  Fatal  **` line). This exercises `classify()` and
-the verdict → succeeded/failed mapping end-to-end (`clean`/`warnings` ⇒ the sim
-is `succeeded`; `severe`/`fatal` ⇒ `failed`, with `error=verdict=…`).
+Inputs must really exist in object storage. `_fetch_input` retries
+`SP_FETCH_ATTEMPTS` times (`SP_FETCH_RETRY_SECONDS` apart) and then **fails the
+simulation** — a bogus `s3://` ref surfaces as a failure (QA L-3).
 
 ## Flow detail
 
@@ -48,7 +45,9 @@ is `succeeded`; `severe`/`fatal` ⇒ `failed`, with `error=verdict=…`).
   (`succeeded` = clean or warnings).
 - **Core Metrics** (CONTRACT §5) — `site_eui`, `source_eui`, `total_site_energy`,
   `total_source_energy`, `unmet_heating_hours`, `unmet_cooling_hours`,
-  `run_seconds`. Always present (value or null).
+  `run_seconds`. Always present (value or null). Energy/EUI come from the
+  `Site and Source Energy` table (`Total Energy` and `Energy Per Total Building
+  Area` columns); unmet hours from `Comfort and Setpoint Not Met Summary`.
 - **Upload** — every file under `out/` (incl. `eplusout.err`, `*.sql`,
   `synergy-summary.json`) to `s3://results/<content_hash>/`.
 - **Result** — upsert `app.results` (idempotent on `content_hash` PK, ADR-0003).
@@ -59,20 +58,24 @@ is `succeeded`; `severe`/`fatal` ⇒ `failed`, with `error=verdict=…`).
 
 ## Run it locally
 
+The Runner needs the `energyplus` binary on PATH, so run it from the image:
+
 ```bash
-pip install -e runner/          # boto3 + psycopg v3 (psycopg2 also supported)
+docker build -t ghcr.io/synergyplus/energyplus-runner:24.1.0 runner/
 
-export DATABASE_URL="postgres://synergy:synergy@localhost:5432/synergy?sslmode=disable"
-export S3_ENDPOINT="http://localhost:9000"
-export S3_ACCESS_KEY=synergy S3_SECRET_KEY=synergypass S3_REGION=us-east-1
-export SP_ENGINE_VERSION=24.1.0
-export SP_FAKE_ENGINE=1          # demo mode; omit for real EnergyPlus
-
-synergy-runner                  # or: python -m synergy_runner
+docker run --rm --network <compose-net> \
+  -e DATABASE_URL="postgres://synergy:synergy@postgres:5432/synergy?sslmode=disable" \
+  -e S3_ENDPOINT="http://minio:9000" -e S3_REGION=us-east-1 \
+  -e S3_ACCESS_KEY=synergy -e S3_SECRET_KEY=synergypass \
+  -e SP_ENGINE_VERSION=24.1.0 \
+  ghcr.io/synergyplus/energyplus-runner:24.1.0
 ```
 
-Scale by starting more processes/replicas — `FOR UPDATE SKIP LOCKED` makes the
-claim safe under concurrency.
+For code-only work (claim/loop/metrics) you can `pip install -e runner/` and run
+`synergy-runner`, pointing `SP_ENERGYPLUS_BIN` at a local EnergyPlus install.
+
+Scale by starting more processes/replicas — `FOR UPDATE SKIP LOCKED` plus the
+per-claim advisory lock make claiming safe under concurrency.
 
 ## Environment (CONTRACT §6)
 
@@ -92,10 +95,7 @@ claim safe under concurrency.
 | `SP_WORKSPACE` | `/tmp/synergy-runner` | scratch root (per-sim temp dirs) |
 | `SP_FETCH_ATTEMPTS` | `3` | input download attempts before failing the sim |
 | `SP_FETCH_RETRY_SECONDS` | `1` | delay between fetch attempts |
-| `SP_FAKE_ENGINE` | off | `1` → synthetic engine |
-| `SP_FAKE_ENGINE_SECONDS` | `1` | fake run duration |
-| `SP_FAKE_VERDICT` | `clean` | `clean\|warnings\|severe\|fatal` — fake `.err` to write |
-| `SP_ENERGYPLUS_BIN` | `energyplus` | real-mode binary |
+| `SP_ENERGYPLUS_BIN` | `energyplus` | EnergyPlus binary name/path |
 | `SP_ARTIFACT_TTL_DAYS` | unset | if set, stamp `results.artifact_expires_at` (GC is Phase-4) |
 
 ## Layout
@@ -105,7 +105,7 @@ synergy_runner/
   config.py     RunnerConfig.from_env() (CONTRACT §6)
   db.py         claim (§2.2), heartbeat (§2.3), back-fill (§2.1), result upsert/finalise
   heartbeat.py  background lease-renewal thread
-  engine.py     real EnergyPlus + deterministic fake engine
+  engine.py     run the energyplus binary
   metrics.py    Core Metrics from eplusout.sql (SQLite)
   parse_err.py  .err → verdict (ported from worker/)
   storage.py    S3/MinIO + file:// download / upload_dir / sha256_file
@@ -113,6 +113,5 @@ synergy_runner/
   __main__.py   `synergy-runner` entrypoint
 ```
 ```
-Dockerfile             slim python image (fake mode; the demo default)
-Dockerfile.energyplus  real EnergyPlus variant (per engine version)
+Dockerfile    FROM nrel/energyplus:${EPLUS_VERSION} + python3.11 + synergy_runner
 ```

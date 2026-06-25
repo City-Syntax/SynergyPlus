@@ -25,9 +25,6 @@ jobs:
           - package: synergyplus
             dir: sdk/python
             environment: pypi-synergyplus
-          - package: synergy-runner
-            dir: runner
-            environment: pypi-synergy-runner
     environment:
       name: ${{ matrix.environment }}
       url: https://pypi.org/project/${{ matrix.package }}/

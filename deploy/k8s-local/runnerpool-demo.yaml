@@ -10,8 +10,8 @@ spec:
   engineVersion: "24.1.0"
   image: ghcr.io/synergyplus/energyplus-runner:24.1.0
   resources:
-    cpu: "100m"        # small so KEDA can fan out several runners on a laptop
-    memory: "256Mi"
+    cpu: "250m"        # small so KEDA can fan out several runners on a laptop
+    memory: "512Mi"    # headroom for a real (small) EnergyPlus run
   minReplicas: 0       # scale-to-zero when the queue is empty
-  maxReplicas: 6
+  maxReplicas: 4
   defaultUserConcurrency: 50

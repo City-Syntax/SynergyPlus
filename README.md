@@ -4,93 +4,65 @@ A Kubernetes-native orchestrator for distributed [EnergyPlus](https://energyplus
 simulations — queue and run single runs or large parametric sweeps across
 on-prem and cloud capacity from one API.
 
-See [`docs/PROPOSAL.md`](docs/PROPOSAL.md) for the full architecture.
-
-## Layout
-
-```
-api/v1/                CRD types: Simulation, SimulationBatch (+ hand-written deepcopy)
-cmd/operator/          controller-manager — reconciles CRs into Kubernetes Jobs
-cmd/apiserver/         REST gateway — turns API calls into CRs
-internal/controller/   the Simulation and SimulationBatch reconcilers
-worker/                Python EnergyPlus runner (fetch → run → parse .err → upload)
-sdk/python/            researcher-facing client SDK
-config/                CRDs, RBAC, manager Deployment, sample CRs
-Dockerfile.operator    operator image
-Dockerfile.apiserver   apiserver image
-worker/Dockerfile      per-version EnergyPlus worker image
-```
-
 ## How it works
 
-1. A researcher submits a `Simulation` (or a `SimulationBatch` of thousands of
-   variants) via the REST API / Python SDK, which writes a custom resource.
-2. The **operator** reconciles each `Simulation` into a Kubernetes `Job`: an
-   init container fetches the model + weather, the main container runs the
-   version-pinned EnergyPlus worker, which parses the `.err` verdict and uploads
-   results to object storage.
-3. The operator mirrors the Job's progress back onto the CR's status
-   (`Pending → Queued → Running → Succeeded/Failed`). A `SimulationBatch` fans
-   out into child `Simulation`s and aggregates their phases.
+1. You submit a `Simulation` (or a `SimulationBatch` of thousands of variants)
+   via the REST API or the Python SDK. Each becomes a row in a Postgres-backed
+   work queue.
+2. A dynamically-scaled pool of **runners** (a KEDA-driven `RunnerPool`) pulls
+   queued simulations, runs the version-pinned EnergyPlus engine, extracts the
+   core metrics, and uploads result artifacts to object storage.
+3. You poll the simulation (or batch) until it reaches a terminal state and read
+   back its verdict, metrics, and artifact URI.
 
-## Quickstart (local cluster)
+## Quickstart (local stack)
 
-```bash
-# 1. Build the binaries (verifies everything compiles)
-make build
-
-# 2. Install CRDs + deploy operator/apiserver into the current kubecontext
-make deploy
-
-# 3. Build a worker image for the EnergyPlus version you need
-make docker-worker EPLUS_VERSION=24.1.0
-
-# 4. Submit a sample run
-kubectl apply -f config/samples/simulation.yaml
-kubectl get simulations -w
-```
-
-Or run the operator out-of-cluster against your kubeconfig:
+The whole system runs locally with Docker Compose — Postgres, object storage
+(MinIO), the API server, a runner, and the developer portal:
 
 ```bash
-make install   # CRDs only
-make run       # operator in the foreground
+make up      # build + start the stack
+make smoke   # end-to-end smoke test against it
+make down    # stop (use `make clean` to also wipe data)
 ```
 
-### Python SDK
+After `make up`:
+
+- API → http://localhost:8090
+- Portal → http://localhost:3000
+- MinIO console → http://localhost:9001
+
+## Running on Kubernetes
+
+```bash
+make keda         # install KEDA into the current cluster
+make k8s-deploy   # apply CRDs, RBAC, the operator, and a sample RunnerPool
+make k8s-undeploy # tear it back down
+```
+
+## Python SDK
+
+```bash
+pip install synergyplus
+```
 
 ```python
-from synergyplus import SynergyClient
+from synergyplus import SynergyClient, ArtifactRef
 
-sp = SynergyClient("http://synergyplus.lab.internal", token="...")
+sp = SynergyClient("http://localhost:8090", token="synergy-dev-key")
+
 sim = sp.submit_simulation(
-    name="tower-baseline-chicago",
     engine_version="24.1.0",
-    model="s3://models/tower/baseline.idf",
-    weather="s3://weather/USA_IL_Chicago.epw",
+    model=ArtifactRef("s3://models/sample/baseline.idf"),
+    weather=ArtifactRef("s3://weather/sample/chicago.epw"),
 )
-result = sp.wait(namespace="default", name="tower-baseline-chicago")
-print(result["status"])
+
+sp.wait(sim["id"])
+print(sp.get_results(sim["id"]))
 ```
 
-## Status
+See [`sdk/python/README.md`](sdk/python/README.md) for the full client reference.
 
-> ⚠️ **The design has moved on from this skeleton.** A design review
-> ([`docs/adr/0001`–`0009`](docs/adr/), summarized in
-> [`docs/PROPOSAL.md` v0.2](docs/PROPOSAL.md)) changed the architecture
-> substantially: simulations are **Postgres rows, not CRDs**; there are **no
-> per-run Jobs**; the queue lives in **Postgres**; the only CRD is **`RunnerPool`**;
-> workers are a **dynamically-scaled pull-loop pool** (KEDA); and auth is **Better
-> Auth** with a developer portal. See [PROPOSAL §12](docs/PROPOSAL.md#12-reconciling-the-skeleton)
-> for exactly what to remove, add, and keep.
+## License
 
-This skeleton (the two `Simulation`/`SimulationBatch` CRDs, both reconcilers, the
-Job-builder, the REST gateway, the worker, the Python SDK) predates that review.
-The `worker/` engine logic and the SDK shape survive; the CRD/operator/Job layer is
-superseded and pending reconciliation.
-
-## Development notes
-
-`api/v1/zz_generated.deepcopy.go` and the CRD YAML are normally generated by
-`controller-gen`. They're hand-authored here because the tool wasn't available;
-once installed, `make generate` regenerates both from the Go types.
+MIT — see [LICENSE](LICENSE).

@@ -86,7 +86,6 @@ def process_simulation(cfg: RunnerConfig, db: Database, sim: dict) -> bool:
             model_path=model_path,
             weather_path=weather_path,
             out_dir=out_dir,
-            content_hash=ch,
         )
 
         # --- parse the .err → verdict ---------------------------------------

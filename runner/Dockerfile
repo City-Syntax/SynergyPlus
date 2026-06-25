@@ -1,30 +1,57 @@
-# SynergyPlus Runner — real EnergyPlus image.
+# SynergyPlus Runner — real EnergyPlus, multi-arch (arm64 + amd64).
 #
-# Layers the Python pull-loop Runner on top of NREL's official EnergyPlus image
-# so it actually invokes the `energyplus` binary. Build & tag per engine version:
+# Built on ubuntu:22.04 (multi-arch; ships Python 3.10 — no deadsnakes needed) with
+# the architecture-matched official EnergyPlus release. Builds NATIVELY on Apple
+# Silicon / arm64 (OrbStack) AND on amd64 (EKS) — Docker selects the base image arch
+# and TARGETARCH picks the matching EnergyPlus tarball.
 #
-#   docker build --build-arg EPLUS_VERSION=24.1.0 \
-#     -t ghcr.io/synergyplus/energyplus-runner:24.1.0 runner/
+#   docker build -t ghcr.io/synergyplus/energyplus-runner:24.1.0 runner/
 #
-# The base image already puts `energyplus` on PATH. We add python3 + pip and the
-# synergy_runner package (psycopg + boto3) on top.
-ARG EPLUS_VERSION=24.1.0
-FROM nrel/energyplus:${EPLUS_VERSION}
+# For another EnergyPlus version, pass its version AND release commit sha:
+#   --build-arg EPLUS_VERSION=24.2.0 --build-arg EPLUS_SHA=<sha>
+FROM ubuntu:22.04
 
-# The NREL image is Ubuntu-based but ships no Python. Install a runtime Python.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv \
-    && rm -rf /var/lib/apt/lists/*
+ARG EPLUS_VERSION=24.1.0
+ARG EPLUS_SHA=9d7789a3ac
+ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Runtime + build deps. Ubuntu 22.04's python3 is 3.10 (>=3.9), so no deadsnakes.
+# libgomp1 (OpenMP) + libpq5 (psycopg) are EnergyPlus/driver runtime requirements.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        python3 python3-pip ca-certificates wget \
+        libgomp1 libpq5 libx11-6 libxext6; \
+    rm -rf /var/lib/apt/lists/*
+
+# Install the architecture-matched EnergyPlus release.
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      arm64) EPARCH=arm64 ;; \
+      amd64) EPARCH=x86_64 ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    base="EnergyPlus-${EPLUS_VERSION}-${EPLUS_SHA}-Linux-Ubuntu22.04-${EPARCH}"; \
+    wget -q "https://github.com/NREL/EnergyPlus/releases/download/v${EPLUS_VERSION}/${base}.tar.gz" \
+        -O /tmp/ep.tar.gz; \
+    mkdir -p /opt/energyplus; \
+    tar -xzf /tmp/ep.tar.gz -C /opt/energyplus --strip-components=1; \
+    rm /tmp/ep.tar.gz; \
+    ln -s /opt/energyplus/energyplus /usr/local/bin/energyplus
 
 WORKDIR /opt/runner
+COPY . /opt/runner
+# Ubuntu 22.04 ships pip 22.0.2, which mis-parses modern PEP 621 / SPDX metadata and
+# builds an empty "UNKNOWN-0.0.0" wheel (no deps, no console script). Upgrade first.
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && python3 -m pip install --no-cache-dir /opt/runner
 
-# Install deps/package. Copy metadata first for layer caching, then the package.
-COPY pyproject.toml README.md LICENSE /opt/runner/
-COPY synergy_runner /opt/runner/synergy_runner
-RUN pip3 install --no-cache-dir --break-system-packages /opt/runner
-
-# Fail the build fast if the engine isn't on PATH.
-RUN command -v energyplus
+# Fail the build fast if the engine or entrypoint isn't wired up.
+RUN command -v energyplus \
+ && energyplus --version \
+ && python3 -c "import synergy_runner" \
+ && command -v synergy-runner
 
 ENV SP_WORKSPACE=/tmp/synergy-runner
 ENTRYPOINT ["synergy-runner"]

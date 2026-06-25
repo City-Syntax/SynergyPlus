@@ -28,9 +28,17 @@ python deploy/seed/seed.py
 Or via Docker: `docker build -t synergyplus/seed deploy/seed && docker run --rm \
   -e DATABASE_URL=... -e S3_ENDPOINT=... synergyplus/seed`.
 
-The sample `model.idf` / `weather.epw` are intentionally tiny. In `SP_FAKE_ENGINE`
-mode they need only exist (the fake engine never reads their bytes); they are not
-guaranteed to be fully EnergyPlus-valid for a real run.
+The sample inputs are **real and validated for EnergyPlus 24.1.0**:
+- `baseline.idf` — the upstream EnergyPlus ExampleFile `1ZoneUncontrolled.idf`
+  (shipped in `nrel/energyplus:24.1.0` at `/var/simdata`), with
+  `Output:SQLite,SimpleAndTabular;` appended so the run emits `eplusout.sql` with
+  the `AnnualBuildingUtilityPerformanceSummary` the Runner extracts.
+- `chicago.epw` — the canonical `USA_IL_Chicago-OHare.Intl.AP.725300_TMY3` full
+  8760-hour weather file.
+
+A real `energyplus -w chicago.epw -d out/ -r baseline.idf` completes in <1s and
+yields non-null Core Metrics (verified: site_eui 354.82, source_eui 1123.7,
+total_site_energy 82.41 GJ, total_source_energy 260.99 GJ).
 ```
 Dev API key:  synergy-dev-key
 Model ref:    s3://models/sample/baseline.idf

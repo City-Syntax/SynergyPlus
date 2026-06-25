@@ -156,13 +156,33 @@ These are deliberate scope/known items, not regressions (full detail in
 
 ---
 
-## Optional: the Kubernetes path (production-faithful)
+## The Kubernetes path with KEDA autoscaling (OrbStack)
 
-The Compose stack is the workload data-plane; the `RunnerPool` operator + KEDA scaling
-is the K8s-native deployment, runnable on your local OrbStack cluster:
+The `RunnerPool` operator + KEDA is the K8s-native deployment. One command brings up
+the whole thing on your local OrbStack cluster — builds the images (OrbStack shares the
+docker image store, no registry needed), installs KEDA, deploys an in-cluster data
+plane (Postgres + MinIO), the operator + apiserver, seeds real inputs, and applies a
+`RunnerPool`:
+
 ```bash
-make keda            # install KEDA
-make k8s-deploy      # CRD + operator + a sample RunnerPool
-kubectl get runnerpools,scaledobjects,deploy -A
+make k8s-local
 ```
+
+Then drive it:
+```bash
+# Forward the API and submit a real run
+kubectl -n synergy-system port-forward svc/synergyplus-apiserver 8090:80 &
+API=http://localhost:8090 ./deploy/smoke.sh
+
+# Watch KEDA autoscale the runner pool as the queue grows/drains:
+kubectl -n synergy-system get pods -l synergyplus.io/pool=eplus-24-1-0 -w
+```
+A burst of distinct submissions scales the pool `0 → maxReplicas` (verified: 12 variants
+drove it 1→4, drained in ~10s), then back to zero after the KEDA cooldown.
+
+Tear down: `make k8s-local-down`.
+
+> Verified end to end on OrbStack (arm64): operator reconciles `RunnerPool` →
+> Deployment + KEDA `ScaledObject`; real EnergyPlus runs; real metrics extracted from
+> `eplusout.sql`; KEDA scales on eligible queue depth.
 

@@ -46,6 +46,21 @@ def as_ref(value: Union[str, ArtifactRef], sha256: Optional[str] = None) -> dict
     return ArtifactRef(ref=value, sha256=sha256).to_dict()
 
 
+def is_local_path(value: Union[str, ArtifactRef]) -> bool:
+    """True if *value* is a local filesystem path that should be uploaded.
+
+    An :class:`ArtifactRef` or any ``<scheme>://`` URI (``s3://``, ``https://``)
+    is treated as an existing object reference — never a local path. Everything
+    else (``./tower.idf``, ``/abs/path.idf``, ``model.idf``) is a local path.
+    """
+    if isinstance(value, ArtifactRef):
+        return False
+    if not isinstance(value, str):
+        return False
+    # A URI scheme like "s3" or "https" means it is already a storage ref.
+    return "://" not in value
+
+
 @dataclass
 class Variant:
     """One model variant in a batch submission."""

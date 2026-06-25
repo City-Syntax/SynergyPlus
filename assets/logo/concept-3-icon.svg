@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="SynergyPlus icon">
+  <title>SynergyPlus — S+ Mesh</title>
+
+  <!-- "S" traced as a distributed mesh path (green energy ribbon) -->
+  <path d="M188 70
+           C188 44 158 36 128 36
+           C92 36 64 54 64 86
+           C64 118 96 124 128 128
+           C160 132 192 138 192 170
+           C192 202 164 220 128 220
+           C98 220 68 212 68 186"
+        fill="none" stroke="#00A85A" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- node hubs sitting on the S path (synergy / k8s pods) -->
+  <g fill="#0B6E3B">
+    <circle cx="188" cy="70"  r="13"/>
+    <circle cx="64"  cy="86"  r="13"/>
+    <circle cx="192" cy="170" r="13"/>
+    <circle cx="68"  cy="186" r="13"/>
+    <circle cx="128" cy="128" r="14"/>
+  </g>
+
+  <!-- the EnergyPlus "Plus": bold blue plus badge, top-right -->
+  <g fill="#0082C4">
+    <rect x="206" y="34" width="14" height="46" rx="4"/>
+    <rect x="190" y="50" width="46" height="14" rx="4"/>
+  </g>
+</svg>

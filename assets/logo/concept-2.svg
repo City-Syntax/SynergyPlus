@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 256" role="img" aria-label="SynergyPlus logo">
+  <title>SynergyPlus — Convergence Plus (horizontal lockup)</title>
+
+  <!-- ===== icon ===== -->
+  <g transform="translate(0,0)">
+    <rect x="16" y="16" width="224" height="224" rx="48" fill="#0B3B53"/>
+    <g stroke-linecap="round" fill="none" stroke-width="14">
+      <path d="M128 60  V100" stroke="#28C2A8"/>
+      <path d="M128 196 V156" stroke="#28C2A8"/>
+      <path d="M60 128  H100" stroke="#5BD1BC"/>
+      <path d="M196 128 H156" stroke="#5BD1BC"/>
+    </g>
+    <g fill="#7FE0D0">
+      <circle cx="128" cy="56"  r="11"/>
+      <circle cx="128" cy="200" r="11"/>
+      <circle cx="56"  cy="128" r="11"/>
+      <circle cx="200" cy="128" r="11"/>
+    </g>
+    <circle cx="128" cy="128" r="34" fill="#0082C4"/>
+    <g fill="#ffffff">
+      <rect x="121" y="108" width="14" height="40" rx="4"/>
+      <rect x="108" y="121" width="40" height="14" rx="4"/>
+    </g>
+  </g>
+
+  <!-- ===== wordmark ===== -->
+  <g font-family="'Helvetica Neue', Arial, 'Segoe UI', sans-serif" transform="translate(282,148)">
+    <text x="0" y="0" font-size="64" letter-spacing="-1">
+      <tspan fill="#0B3B53" font-weight="400">Synergy</tspan><tspan fill="#0082C4" font-weight="700">Plus</tspan>
+    </text>
+    <text x="2" y="34" font-size="20" letter-spacing="3" fill="#5A6B73" font-weight="500">PARALLEL SIMULATION ORCHESTRATOR</text>
+  </g>
+</svg>

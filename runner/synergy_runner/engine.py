@@ -23,7 +23,6 @@ def run_engine(
     model_path: str,
     weather_path: str,
     out_dir: str,
-    content_hash: str,
 ) -> dict:
     """Execute EnergyPlus. Returns the Core Metrics dict (run_seconds filled in)."""
     os.makedirs(out_dir, exist_ok=True)

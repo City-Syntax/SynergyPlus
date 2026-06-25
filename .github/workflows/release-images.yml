@@ -36,6 +36,9 @@ jobs:
           - name: portal
             context: portal
             dockerfile: portal/Dockerfile
+          - name: seed
+            context: deploy/seed
+            dockerfile: deploy/seed/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
