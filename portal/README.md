@@ -84,6 +84,7 @@ Non-allowed domains are rejected **before any link is generated** with:
 | `BETTER_AUTH_URL` | `http://localhost:3000` | Portal base URL used for magic-link generation. |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8090` | API gateway base URL shown in Getting Started. |
 | `PORTAL_DEV_LOGIN` | on if not prod | Surface magic link in the UI for local testing. |
+| `ALLOWED_EMAIL_DOMAINS` | _none_ (fail-closed) | Comma-separated email domains allowed to sign in (ADR-0009), e.g. `urbanflow.co,nus.edu.sg`. Unset blocks all logins. |
 
 ## Docker
 

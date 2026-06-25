@@ -3,7 +3,18 @@
  * All values are read on the server only.
  */
 
-export const ALLOWED_DOMAINS = ["urbanflow.co", "nus.edu.sg"] as const;
+// Email domains permitted to sign in (ADR-0009), configured at runtime via
+// ALLOWED_EMAIL_DOMAINS (comma-separated, e.g. "urbanflow.co,nus.edu.sg").
+// Fail-closed: an empty/unset list permits no one, so a misconfigured deploy
+// blocks logins rather than opening them up.
+export const ALLOWED_DOMAINS: string[] = (process.env.ALLOWED_EMAIL_DOMAINS ?? "")
+  .split(",")
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
+
+// Re-exported for server callers; the implementation is env-free (see
+// ./allowed-domains) so client components can import it directly.
+export { allowedDomainsLabel } from "./allowed-domains";
 
 export const env = {
   // Shared Postgres (CONTRACT §6). Better Auth + the app schema live here.

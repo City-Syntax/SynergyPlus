@@ -2,19 +2,27 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { ALLOWED_DOMAINS } from "@/lib/env";
+import { allowedDomainsLabel } from "@/lib/allowed-domains";
 
 type DevLink = { url: string; token: string };
 
-export function LoginForm({ devLoginEnabled }: { devLoginEnabled: boolean }) {
+export function LoginForm({
+  devLoginEnabled,
+  allowedDomains,
+}: {
+  devLoginEnabled: boolean;
+  allowedDomains: string[];
+}) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [devLink, setDevLink] = useState<DevLink | null>(null);
 
+  const domainsLabel = allowedDomainsLabel(allowedDomains);
+
   function clientDomainOk(value: string): boolean {
     const domain = value.split("@")[1]?.toLowerCase();
-    return !!domain && (ALLOWED_DOMAINS as readonly string[]).includes(domain);
+    return !!domain && allowedDomains.includes(domain);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -26,7 +34,9 @@ export function LoginForm({ devLoginEnabled }: { devLoginEnabled: boolean }) {
     if (!clientDomainOk(trimmed)) {
       setStatus("error");
       setError(
-        "Please use an @urbanflow.co or @nus.edu.sg email address.",
+        domainsLabel
+          ? `Please use an ${domainsLabel} email address.`
+          : "Please use an approved work email address.",
       );
       return;
     }
@@ -125,7 +135,7 @@ export function LoginForm({ devLoginEnabled }: { devLoginEnabled: boolean }) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@nus.edu.sg"
+          placeholder={`you@${allowedDomains[0] ?? "example.org"}`}
           className="w-full rounded-lg border border-border bg-panel-2 px-3.5 py-2.5 text-sm text-fg outline-none transition placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/30"
         />
       </div>
