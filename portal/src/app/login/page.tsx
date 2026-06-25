@@ -3,6 +3,13 @@ import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ALLOWED_DOMAINS, allowedDomainsLabel, env } from "@/lib/env";
 
+// Render at request time, not build time. ALLOWED_DOMAINS comes from the runtime
+// env (ALLOWED_EMAIL_DOMAINS); if this page is statically prerendered during the
+// CI image build — where that env var is unset — the allow-list bakes in EMPTY,
+// and the client form then rejects every address ("approved work email"). Forcing
+// dynamic rendering makes it read the real value from the pod at request time.
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   const domainsLabel = allowedDomainsLabel(ALLOWED_DOMAINS);
   return (
