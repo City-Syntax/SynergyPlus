@@ -17,6 +17,7 @@ import (
 
 	"github.com/synergyplus/synergyplus/internal/api"
 	"github.com/synergyplus/synergyplus/internal/queue"
+	"github.com/synergyplus/synergyplus/internal/storage"
 	"github.com/synergyplus/synergyplus/internal/store"
 )
 
@@ -51,7 +52,33 @@ func main() {
 	reaper := queue.NewReaper(st, log)
 	go reaper.Run(ctx)
 
-	srv := api.NewServer(st, expander, cfg, log)
+	// Presigned-URL minting (optional): requires S3 endpoint + creds. When
+	// unconfigured the /v1/uploads and /v1/results/{id}/artifacts endpoints
+	// return 503; all other endpoints work regardless.
+	var presigner *storage.Presigner
+	if cfg.S3Endpoint != "" && cfg.S3AccessKey != "" {
+		presigner, err = storage.New(storage.Config{
+			Endpoint:       cfg.S3Endpoint,
+			PublicEndpoint: cfg.S3PublicEndpoint,
+			AccessKey:      cfg.S3AccessKey,
+			SecretKey:      cfg.S3SecretKey,
+			Region:         cfg.S3Region,
+			Expiry:         cfg.PresignExpiry,
+		})
+		if err != nil {
+			log.Error("init presigner", "err", err)
+			os.Exit(1)
+		}
+		public := cfg.S3PublicEndpoint
+		if public == "" {
+			public = cfg.S3Endpoint
+		}
+		log.Info("presigned URLs enabled", "public_endpoint", public, "expiry", cfg.PresignExpiry)
+	} else {
+		log.Warn("presigned URLs disabled (S3_ENDPOINT/S3_ACCESS_KEY unset)")
+	}
+
+	srv := api.NewServer(st, expander, api.NewPresignerAdapter(presigner), cfg, log)
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           srv.Router(),

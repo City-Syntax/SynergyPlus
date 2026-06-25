@@ -6,11 +6,7 @@ artifacts** straight to a local directory:
 
     from synergyplus import SynergyClient
 
-    sp = SynergyClient(
-        "http://localhost:8090", token="synergy-dev-key",
-        s3_endpoint="http://localhost:9000",
-        s3_access_key="synergy", s3_secret_key="synergypass",
-    )
+    sp = SynergyClient("http://localhost:8090", token="synergy-dev-key")
     sim = sp.submit_simulation(
         engine_version="24.1.0",
         model="./tower.idf",            # local path → uploaded automatically
@@ -21,9 +17,14 @@ artifacts** straight to a local directory:
     print(sp.get_metrics(sim["id"]))                  # → metrics dict
 
 ``model``/``weather`` still accept ``s3://...`` strings and :class:`ArtifactRef`
-unchanged. Local-path upload and result download require S3 configuration (kwargs
-above or ``S3_ENDPOINT``/``S3_ACCESS_KEY``/``S3_SECRET_KEY``/``S3_REGION`` env)
-and the optional ``boto3`` dependency (``pip install 'synergyplus[s3]'``).
+unchanged.
+
+**Backend selection.** With no S3 endpoint/creds configured (the example above),
+local-file upload and result download go through the apiserver's presigned-URL
+endpoints using **only the API key** — no boto3, no S3 credentials. Supplying any
+of ``s3_endpoint``/``s3_access_key``/``s3_secret_key`` (or the ``S3_*`` env vars)
+switches to the direct-S3 backend (static creds, ``pip install 'synergyplus[s3]'``).
+Either way the call sites are identical.
 """
 
 from __future__ import annotations
@@ -34,13 +35,33 @@ from typing import List, Optional, Sequence, Union
 import requests
 
 from .models import ArtifactRef, Variant, as_ref, is_local_path, sha256_file
-from .storage import S3StorageBackend, StorageBackend, StorageError
+from .storage import (
+    PresignedURLBackend,
+    ResultLocation,
+    S3StorageBackend,
+    StorageBackend,
+    StorageError,
+)
+
+import os
 
 _TERMINAL = {"succeeded", "failed"}
 
 # Default bucket per input kind (CONTRACT §4).
 _BUCKET_MODELS = "models"
 _BUCKET_WEATHER = "weather"
+
+
+def _s3_configured(endpoint, access_key, secret_key) -> bool:
+    """True if any direct-S3 configuration is present (kwargs or env). When false,
+    the client is API-key-only and uses the presigned-URL backend (B2)."""
+    return any(
+        [
+            endpoint or os.environ.get("S3_ENDPOINT"),
+            access_key or os.environ.get("S3_ACCESS_KEY"),
+            secret_key or os.environ.get("S3_SECRET_KEY"),
+        ]
+    )
 
 
 class SynergyClient:
@@ -62,15 +83,25 @@ class SynergyClient:
         if token:
             self._session.headers["Authorization"] = f"Bearer {token}"
 
-        # Storage backend for local-file upload / result download. Defaults to
-        # direct S3 with static creds (env or the kwargs above). A presigned-URL
-        # backend can be injected via ``storage=`` without touching call sites.
-        self._storage: StorageBackend = storage or S3StorageBackend(
-            endpoint=s3_endpoint,
-            access_key=s3_access_key,
-            secret_key=s3_secret_key,
-            region=s3_region,
-        )
+        # Storage backend for local-file upload / result download.
+        #
+        # Selection (ACCEPTANCE B2):
+        #   * an injected ``storage=`` backend always wins;
+        #   * else, if any S3 endpoint/creds are configured (kwargs or env), use
+        #     the direct-S3 backend (boto3, static creds);
+        #   * else (API-key-only researcher), use the presigned-URL backend, which
+        #     needs no boto3 and no S3 credentials — only the API key.
+        if storage is not None:
+            self._storage: StorageBackend = storage
+        elif _s3_configured(s3_endpoint, s3_access_key, s3_secret_key):
+            self._storage = S3StorageBackend(
+                endpoint=s3_endpoint,
+                access_key=s3_access_key,
+                secret_key=s3_secret_key,
+                region=s3_region,
+            )
+        else:
+            self._storage = PresignedURLBackend(self.base_url, self._session, timeout=timeout)
 
     # -- input resolution ------------------------------------------------------
 
@@ -187,12 +218,11 @@ class SynergyClient:
         """
         results = self.get_results(sim_id)
         uri = results.get("artifactUri")
-        if not uri:
-            raise StorageError(
-                f"simulation {sim_id} has no artifactUri yet "
-                f"(verdict={results.get('verdict')!r}); is it finished?"
-            )
-        return self._storage.download_prefix(uri, dest_dir)
+        # The presigned backend keys off sim_id (it lists per-result GETs); the
+        # direct-S3 backend keys off the artifactUri. ResultLocation carries both
+        # so this call is identical for either backend (B2).
+        location = ResultLocation(sim_id=sim_id, artifact_uri=uri)
+        return self._storage.download_result(location, dest_dir)
 
     def wait(self, sim_id: str, *, poll: float = 2.0, deadline: Optional[float] = None) -> dict:
         """Block until the simulation reaches a terminal state (or the deadline)."""

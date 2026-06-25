@@ -104,9 +104,39 @@ except `/healthz`. Key validated by `sha256(key)` lookup in `app.api_keys` (not 
 | GET | `/v1/batches/{id}` | — | `200 {id, state, total, succeeded, failed}` |
 | GET | `/v1/batches/{id}/simulations?limit&offset` | — | `200 {items:[...], total}` |
 | GET | `/v1/results/{simId}` | — | `200 {verdict, metrics, artifactUri}` |
+| POST | `/v1/uploads` | `{kind:"model"\|"weather", filename, sha256?}` | `200 {url, ref, method, headers?, expiresIn}` |
+| GET | `/v1/results/{simId}/artifacts` | — | `200 {artifacts:[{name, url, size?}]}` |
 
 Submission ≤100 variants expands synchronously; larger goes async (state `expanding`).
 `idempotencyKey` dedups batch submission.
+
+### 3.1 Presigned-URL file transfer (API-key-only upload/download)
+
+So researchers transfer files with **only their API key** — no S3 credentials ever
+leave the cluster — the apiserver mints short-lived **presigned** URLs with its own
+S3 credentials. The SDK then `PUT`s/`GET`s those URLs over plain HTTP.
+
+- **`POST /v1/uploads`** — mints a short-lived presigned **PUT** into the `kind`'s
+  bucket (`model`→`models`, `weather`→`weather`) at a content-addressed key
+  (`uploads/<sha256>-<basename>` when `sha256` is supplied, else
+  `uploads/<userId>/<basename>`). Response: `url` (the presigned PUT), `ref` (the
+  `s3://bucket/key` to submit in `model`/`weather`), `method` (`"PUT"`), optional
+  `headers` to echo on the PUT, and `expiresIn` (seconds). No S3 credentials appear
+  in the response body (only the signature query string). The URL is bound to that
+  exact bucket+key.
+- **`GET /v1/results/{simId}/artifacts`** — lists every object under the result's
+  `s3://results/<content_hash>/` prefix as `{name, url, size?}`, where each `url` is
+  a short-lived presigned **GET**. `name` is the object key relative to the prefix.
+  Returns **404** unless the simulation belongs to the calling user (an other-user or
+  unknown sim is indistinguishable — no existence leak), or if the sim has no result
+  yet.
+
+Both endpoints require the same Bearer API key as the rest of `/v1/*`. Presigned
+URLs are signed against the **client-reachable** host (`S3_PUBLIC_ENDPOINT`, §6) so
+the URL the apiserver mints is reachable from the researcher's machine; the apiserver
+lists objects against the in-cluster `S3_ENDPOINT`. URLs expire in ≤15 min
+(`SP_PRESIGN_EXPIRY_SECONDS`, default 300). When no S3 endpoint/creds are configured
+on the apiserver, both endpoints return **503**.
 
 ## 4. Object storage (MinIO, S3 API)
 
@@ -140,6 +170,11 @@ AUTH_URL=http://portal:3000        # apiserver may call portal for user upsert (
 SP_ALLOWED_ENGINE_VERSIONS=24.1.0  # apiserver: comma-sep allow-list; empty ⇒ accept any (M-1)
 SP_FETCH_ATTEMPTS=3  SP_FETCH_RETRY_SECONDS=2   # runner: fetch retry before failing (L-3)
 SP_ARTIFACT_TTL_DAYS=               # runner: if set, stamps results.artifact_expires_at (L-1)
+# Presigned-URL file transfer (apiserver):
+S3_PUBLIC_ENDPOINT=                 # client-reachable S3 host URLs are signed against;
+                                    #   falls back to S3_ENDPOINT. Local: http://localhost:9000.
+                                    #   On AWS leave empty (S3 is already public).
+SP_PRESIGN_EXPIRY_SECONDS=300       # apiserver: presigned-URL lifetime (≤900, default 300)
 # NOTE: the runner runs REAL EnergyPlus (nrel/energyplus base) — there is no fake mode.
 ```
 

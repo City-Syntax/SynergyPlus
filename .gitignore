@@ -11,6 +11,11 @@ __pycache__/
 build/
 dist/
 
+# Node / JS (e.g. portal, infra/pulumi)
+node_modules/
+**/node_modules/
+*.tsbuildinfo
+
 # Editor / OS
 .DS_Store
 .idea/
