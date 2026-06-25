@@ -1,0 +1,51 @@
+[
+  {
+    "name": "both_empty_placeholder",
+    "model_sha256": "",
+    "weather_sha256": "",
+    "engine_version": "22.2.0",
+    "expected": "54edf32e449b85358adfb1fa4cadfd06b92aefa0f0dce31981d376bc314b807c"
+  },
+  {
+    "name": "empty_model_only",
+    "model_sha256": "",
+    "weather_sha256": "fc77ffa46517e1e2a33c04ffef70b627e8d6910b3ddd5eb960c8aa652e698151",
+    "engine_version": "22.2.0",
+    "expected": "cf806c45d5672a1b513ef5cce901bb04cc46044c4b3558bedad4c71e907aa302"
+  },
+  {
+    "name": "empty_weather_only",
+    "model_sha256": "97034fe148a68e09e1c8fed7f69db6d24e49c7a0c545616c65fe179ad005f01d",
+    "weather_sha256": "",
+    "engine_version": "22.2.0",
+    "expected": "a10018a218373a65f4b4a7108ee2f56179b9a2de037a11421f3261c7085ab304"
+  },
+  {
+    "name": "all_empty",
+    "model_sha256": "",
+    "weather_sha256": "",
+    "engine_version": "",
+    "expected": "71546855d6279ef70d20909b292c42c2dcb02cd06bde01485da52d13e304ebf4"
+  },
+  {
+    "name": "normal_short",
+    "model_sha256": "model-abc",
+    "weather_sha256": "weather-xyz",
+    "engine_version": "9.6.0",
+    "expected": "d09824d7ce3447385d8af38bdb8573eda8f3a8f6db97c7681cee8cd56e6963d2"
+  },
+  {
+    "name": "real_64hex_filled",
+    "model_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "weather_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "engine_version": "23.1.0",
+    "expected": "d7160e6897f6527de3c125d233f8659a1e9c6b95f9389485e6203fd932eba90f"
+  },
+  {
+    "name": "real_computed_digests",
+    "model_sha256": "97034fe148a68e09e1c8fed7f69db6d24e49c7a0c545616c65fe179ad005f01d",
+    "weather_sha256": "fc77ffa46517e1e2a33c04ffef70b627e8d6910b3ddd5eb960c8aa652e698151",
+    "engine_version": "24.1.0",
+    "expected": "c779d642e5dd6a7fd9c495b0c7cf797365214288f9b63bd8027f55c0f1566923"
+  }
+]
