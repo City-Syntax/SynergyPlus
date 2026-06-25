@@ -21,7 +21,13 @@
 
 from .client import SynergyClient
 from .models import ArtifactRef, Variant, is_local_path, sha256_file
-from .storage import S3StorageBackend, StorageBackend, StorageError
+from .storage import (
+    PresignedURLBackend,
+    ResultLocation,
+    S3StorageBackend,
+    StorageBackend,
+    StorageError,
+)
 
 __all__ = [
     "SynergyClient",
@@ -31,6 +37,8 @@ __all__ = [
     "is_local_path",
     "StorageBackend",
     "S3StorageBackend",
+    "PresignedURLBackend",
+    "ResultLocation",
     "StorageError",
 ]
 __version__ = "0.3.0"
