@@ -70,23 +70,32 @@ curl -s localhost:8090/v1/simulations -H "Authorization: Bearer <your-key>" \
        "weather":{"ref":"s3://weather/sample/chicago.epw"},"priority":1}'   # priority: 0 low, 1 normal, 2 high
 ```
 
-## 5. Python SDK
+## 5. Python SDK (presigned, API-key-only — the default flow)
+
+Only the API key is needed — no S3 credentials. Local file paths upload via presigned
+URLs the API mints; `download_results` pulls artifacts back the same way. (The Compose
+apiserver sets `S3_PUBLIC_ENDPOINT=http://localhost:9000` so the minted URLs are
+reachable from your machine.)
 
 ```bash
 pip install -e sdk/python
 python - <<'PY'
-from synergyplus import SynergyClient, ArtifactRef
+from synergyplus import SynergyClient
 sp = SynergyClient("http://localhost:8090", token="synergy-dev-key")
 sim = sp.submit_simulation(
     engine_version="24.1.0",
-    model=ArtifactRef("s3://models/sample/baseline.idf"),
-    weather=ArtifactRef("s3://weather/sample/chicago.epw"),
+    model="deploy/seed/sample/baseline.idf",     # local path → presigned upload
+    weather="deploy/seed/sample/chicago.epw",
 )
 print("submitted", sim["id"])
 print("final", sp.wait(sim["id"]))
-print("results", sp.get_results(sim["id"]))
+print("metrics", sp.get_metrics(sim["id"]))
+print("downloaded", sp.download_results(sim["id"], "./out/"))
 PY
 ```
+
+> Advanced (direct S3/MinIO): pass `s3://…` refs and S3 creds (`pip install
+> 'synergyplus[s3]'`) to transfer directly instead — see `sdk/python/README.md`.
 
 ## 6. Batches + the result cache
 

@@ -59,6 +59,9 @@ services:
       APISERVER_ADDR: ":8090"
       MIGRATIONS_DIR: /app/db/migrations
       SP_ALLOWED_ENGINE_VERSIONS: "24.1.0"   # M-1: reject unknown versions with 400
+      # Presigned-URL flow (SDK default): sign URLs against the host-reachable MinIO
+      # so the SDK on your machine can PUT/GET them (in-cluster host is minio:9000).
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
     ports: ["8090:8090"]
     depends_on:
       postgres: { condition: service_healthy }
