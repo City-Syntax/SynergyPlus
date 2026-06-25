@@ -9,4 +9,4 @@ from .config import RunnerConfig
 from .loop import content_hash, run_forever
 
 __all__ = ["RunnerConfig", "run_forever", "content_hash"]
-__version__ = "0.5.0"
+__version__ = "0.6.0"
