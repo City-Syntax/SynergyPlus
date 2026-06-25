@@ -1,0 +1,16 @@
+name: synergyplus-infra
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: >-
+  SynergyPlus on AWS. Provisions a VPC, an Amazon EKS cluster (managed control
+  plane + managed node group with the EBS CSI driver), EBS-backed in-cluster
+  Postgres (StatefulSet on a gp3 PV), S3 buckets, and IRSA roles giving the
+  apiserver + runner pods scoped, keyless S3 access. Then brings up KEDA + the
+  SynergyPlus app manifests via the Pulumi kubernetes provider using the EKS
+  kubeconfig. Stays self-managed where it still makes sense: in-cluster Postgres
+  (NOT RDS), GHCR images (NOT ECR), nginx ingress (NOT ALB by default), k8s
+  Secrets (NOT Secrets Manager). S3 is the only AWS *application* managed service.
+config:
+  aws:region: us-east-1

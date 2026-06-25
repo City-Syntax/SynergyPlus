@@ -1,0 +1,5 @@
+/node_modules/
+/bin/
+*.tsbuildinfo
+# Pulumi local secrets / backend artifacts
+Pulumi.*.yaml.bak

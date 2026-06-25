@@ -1,0 +1,24 @@
+{
+  "name": "synergyplus-infra",
+  "version": "0.1.0",
+  "description": "Pulumi IaC (TypeScript) to deploy SynergyPlus on AWS: EKS control plane + managed node group, in-cluster Postgres (EBS CSI), GHCR images, nginx ingress, IRSA for keyless S3. S3 is the only AWS *application* managed service used.",
+  "main": "index.ts",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "preview": "pulumi preview",
+    "up": "pulumi up"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.120.0",
+    "@pulumi/aws": "^6.50.0",
+    "@pulumi/eks": "^3.0.0",
+    "@pulumi/kubernetes": "^4.18.0",
+    "@pulumi/tls": "^5.0.0"
+  }
+}

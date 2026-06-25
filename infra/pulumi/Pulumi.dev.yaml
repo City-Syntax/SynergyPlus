@@ -1,0 +1,41 @@
+config:
+  aws:region: us-east-1
+
+  # --- EKS cluster sizing ---------------------------------------------------
+  synergyplus-infra:k8sVersion: "1.30"
+  synergyplus-infra:nodeInstanceType: t3.xlarge   # node-group instance (CPU-bound EnergyPlus)
+  synergyplus-infra:nodeDesiredCount: 2
+  synergyplus-infra:nodeMinCount: 1
+  synergyplus-infra:nodeMaxCount: 6
+  synergyplus-infra:nodeVolumeSizeGb: 80          # EBS root volume per node
+  synergyplus-infra:postgresVolumeSizeGb: 50      # gp3 PVC for in-cluster Postgres
+
+  # --- Access ---------------------------------------------------------------
+  # CIDR allowed to reach the EKS public API endpoint. Lock this down to your
+  # office / VPN range before `pulumi up`. 0.0.0.0/0 is wide open — dev only.
+  synergyplus-infra:adminCidr: "0.0.0.0/0"
+
+  # --- GHCR image references (CI publishes ghcr.io/<owner>/synergyplus-*) ----
+  synergyplus-infra:imageTag: "latest"
+  synergyplus-infra:ghcrOwner: "city-syntax"
+  # Private GHCR repos need a pull secret. Provide a PAT (read:packages) as a
+  # Pulumi SECRET: `pulumi config set --secret synergyplus-infra:ghcrToken <PAT>`
+  # and the username it belongs to. Leave token empty for public images.
+  synergyplus-infra:ghcrUsername: ""
+  # synergyplus-infra:ghcrToken is a secret — set with `pulumi config set --secret`.
+
+  # --- App config -----------------------------------------------------------
+  synergyplus-infra:domain: "synergyplus.example.com"   # for ingress / cert-manager
+  synergyplus-infra:allowedEngineVersions: "24.1.0"
+  # In-cluster Postgres credentials (written into a k8s Secret). Override the
+  # password with a Pulumi secret in real installs.
+  synergyplus-infra:pgUser: "synergy"
+  synergyplus-infra:pgDatabase: "synergy"
+  # synergyplus-infra:pgPassword is a secret — set with `pulumi config set --secret`.
+
+  # --- Bring-up toggle ------------------------------------------------------
+  # When false, Pulumi provisions ONLY the AWS infra (VPC / EKS / node group /
+  # S3 / IRSA roles) and stops short of installing in-cluster software. Flip to
+  # true to also install KEDA + the SynergyPlus app via the kubernetes provider
+  # (which reads the EKS kubeconfig the cluster exports — no manual fetch needed).
+  synergyplus-infra:deployApp: "false"
