@@ -75,18 +75,36 @@ func parseEndpoint(endpoint string) (string, bool, error) {
 
 // New builds a Presigner. The sign client talks to PublicEndpoint (URLs are
 // client-reachable, A4); the list client talks to the in-cluster Endpoint.
+//
+// Credentials: a static V4 key when AccessKey is set (local MinIO, or an
+// explicit key); otherwise the AWS credential chain via minio-go's IAM provider,
+// which on EKS picks up the pod's IRSA web-identity role. That lets the apiserver
+// presign with its own scoped S3 permissions and NO static secret ever exists.
+// Presign expiry is short (≤15m, A6), well within the IRSA temp-credential TTL.
 func New(cfg Config) (*Presigner, error) {
-	creds := credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, "")
+	var creds *credentials.Credentials
+	if cfg.AccessKey != "" {
+		creds = credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, "")
+	} else {
+		creds = credentials.NewIAM("")
+	}
 
+	// An explicit S3_ENDPOINT (MinIO) wins; otherwise sign against the regional
+	// AWS S3 host, reachable by both the researcher and the apiserver, so the
+	// public/in-cluster split collapses to one endpoint.
+	endpoint := cfg.Endpoint
+	if endpoint == "" {
+		endpoint = awsS3Endpoint(cfg.Region)
+	}
 	pub := cfg.PublicEndpoint
 	if pub == "" {
-		pub = cfg.Endpoint
+		pub = endpoint
 	}
 	signClient, err := newClient(pub, creds, cfg.Region)
 	if err != nil {
 		return nil, fmt.Errorf("build sign client: %w", err)
 	}
-	listClient, err := newClient(cfg.Endpoint, creds, cfg.Region)
+	listClient, err := newClient(endpoint, creds, cfg.Region)
 	if err != nil {
 		return nil, fmt.Errorf("build list client: %w", err)
 	}
@@ -96,6 +114,15 @@ func New(cfg Config) (*Presigner, error) {
 		expiry = 5 * time.Minute
 	}
 	return &Presigner{signClient: signClient, listClient: listClient, expiry: expiry}, nil
+}
+
+// awsS3Endpoint returns the regional AWS S3 HTTPS endpoint for region. The https
+// scheme is load-bearing: parseEndpoint derives Secure from it.
+func awsS3Endpoint(region string) string {
+	if region == "" {
+		region = "us-east-1"
+	}
+	return "https://s3." + region + ".amazonaws.com"
 }
 
 func newClient(endpoint string, creds *credentials.Credentials, region string) (*minio.Client, error) {
