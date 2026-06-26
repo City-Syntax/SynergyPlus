@@ -38,3 +38,17 @@ images:
     newTag: "0.6.4"
   - name: ghcr.io/city-syntax/synergyplus-portal
     newTag: "0.6.4"
+
+# Run the apiserver under its dedicated IRSA ServiceAccount (the base uses
+# synergyplus-operator, which is fine locally but is NOT IRSA-annotated). The
+# synergyplus-apiserver SA (created in SynergyPlusIAC, scoped S3) gives the pod a
+# web-identity token so it can presign uploads/downloads with no static keys.
+# The apiserver makes no Kubernetes API calls, so it needs no operator RBAC.
+patches:
+  - target:
+      kind: Deployment
+      name: synergyplus-apiserver
+    patch: |
+      - op: replace
+        path: /spec/template/spec/serviceAccountName
+        value: synergyplus-apiserver
