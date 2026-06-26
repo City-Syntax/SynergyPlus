@@ -1,4 +1,4 @@
-# Production autoscaling bring-up — diagnosis & verification (v0.6.2)
+# Production autoscaling bring-up — diagnosis & verification (v0.6.2 → v0.6.3)
 
 Goal: get RunnerPool autoscaling working end-to-end in the EKS production
 deployment (cluster `synergyplus`, SynergyPlusIAC `prod` stack). Status: **done
@@ -29,16 +29,18 @@ Jobs weren't starting. KEDA + the queue looked healthy, but no work ran.
    `synergyplus-env` Secret sets it to the IRSA-annotated `synergyplus-runner` SA
    (SynergyPlusIAC). Default empty so local/OrbStack keeps `default` + static keys.
 
-4. **Stale sims referenced logical bucket names.** Old test sims carried
-   `s3://models/...` / `s3://weather/...` refs. The runner's `storage.py` uses the
-   URI's `netloc` as the literal bucket (works on local MinIO, where buckets are
-   literally `models`/`weather`/`results`). In real S3 those names are owned by
-   other accounts → `403 Forbidden`. The apiserver's upload endpoint
-   (`internal/api/uploads.go`) builds refs from `S3_BUCKET_*`, so **real API
-   submissions get correct real-bucket refs** — only the old seed/test data was
-   wrong. The sample inputs were also never uploaded to the prod buckets. → Uploaded
-   `deploy/seed/sample/{baseline.idf,chicago.epw}` to the real model/weather
-   buckets and rewrote the test sims' refs to the real buckets for verification.
+4. **Runner used logical bucket names as literal S3 buckets.** Sims carry refs with
+   logical bucket names (`s3://models/...`). The runner's `storage.py` used the URI
+   `netloc` as the literal bucket — fine on local MinIO (buckets literally named
+   `models`/`weather`/`results`), but in real S3 those names belong to other accounts
+   → `403 Forbidden` on HeadObject. (First verification masked this: it only passed
+   because the test rows had been hand-rewritten to real-bucket refs. QA's fresh
+   logical-ref submissions still 403'd.) → **Fixed in v0.6.3**: `storage._resolve_bucket`
+   maps logical `models`/`weather`/`results` → `S3_BUCKET_MODELS`/`WEATHER`/`RESULTS`;
+   real bucket names pass through unchanged, so both logical and real refs resolve.
+   Also uploaded `deploy/seed/sample/{baseline.idf,chicago.epw}` to the real buckets
+   (they were never seeded). Verified: 20 logical-ref (`s3://models/...`) sims now run
+   to `succeeded`.
 
 ### Also fixed along the way
 
@@ -83,8 +85,4 @@ Requeued 10 sims pointing at the real buckets:
 - **Scale factor** — the ScaledObject uses `targetQueryValue: 1` (one runner pod
   per eligible sim, up to `maxReplicas: 200`). Aggressive for large batches; tune
   if cost/throughput needs balancing.
-- **Logical vs real bucket refs** — the local seeder writes `s3://models/...`
-  logical refs that can't work against real S3. Fine for OrbStack; just don't seed
-  those rows into a real cluster. Consider mapping logical→`S3_BUCKET_*` in the
-  runner if portable refs are ever wanted.
 - **60 leftover test sims** remain in `failed` (harmless, not eligible).
