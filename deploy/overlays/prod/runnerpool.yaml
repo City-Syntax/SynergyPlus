@@ -6,7 +6,7 @@
 # operator via SP_RUNNER_SERVICE_ACCOUNT), giving them keyless, scoped S3 access.
 #
 # spec.image is PINNED on purpose: CI tags the runner image by platform semver
-# only (:0.6.2, :latest), never by engineVersion, so the operator's
+# only (:0.6.3, :latest), never by engineVersion, so the operator's
 # :<engineVersion> default would 404 (see overlay note). Pin to the release tag.
 apiVersion: synergyplus.io/v1
 kind: RunnerPool
@@ -15,7 +15,7 @@ metadata:
   namespace: synergy-system
 spec:
   engineVersion: "24.1.0"
-  image: ghcr.io/city-syntax/synergyplus-runner:0.6.2
+  image: ghcr.io/city-syntax/synergyplus-runner:0.6.3
   resources:
     cpu: "1"
     memory: "2Gi"
