@@ -52,11 +52,15 @@ func main() {
 	reaper := queue.NewReaper(st, log)
 	go reaper.Run(ctx)
 
-	// Presigned-URL minting (optional): requires S3 endpoint + creds. When
-	// unconfigured the /v1/uploads and /v1/results/{id}/artifacts endpoints
-	// return 503; all other endpoints work regardless.
+	// Presigned-URL minting (optional). When unconfigured the /v1/uploads and
+	// /v1/results/{id}/artifacts endpoints return 503; all other endpoints work
+	// regardless. Two ways to enable it:
+	//   1. static credentials  — S3_ACCESS_KEY set (local MinIO or explicit key);
+	//   2. IRSA web identity    — on EKS the apiserver pod's role signs the URLs,
+	//      so researchers need only their API key and no static secret exists.
 	var presigner *storage.Presigner
-	if cfg.S3Endpoint != "" && cfg.S3AccessKey != "" {
+	switch {
+	case cfg.S3AccessKey != "":
 		presigner, err = storage.New(storage.Config{
 			Endpoint:       cfg.S3Endpoint,
 			PublicEndpoint: cfg.S3PublicEndpoint,
@@ -73,9 +77,21 @@ func main() {
 		if public == "" {
 			public = cfg.S3Endpoint
 		}
-		log.Info("presigned URLs enabled", "public_endpoint", public, "expiry", cfg.PresignExpiry)
-	} else {
-		log.Warn("presigned URLs disabled (S3_ENDPOINT/S3_ACCESS_KEY unset)")
+		log.Info("presigned URLs enabled (static credentials)", "public_endpoint", public, "expiry", cfg.PresignExpiry)
+	case os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE") != "":
+		// EKS IRSA: no static endpoint/keys — sign against the regional AWS S3
+		// host using the pod's web-identity role (scoped S3 in iam.ts).
+		presigner, err = storage.New(storage.Config{
+			Region: cfg.S3Region,
+			Expiry: cfg.PresignExpiry,
+		})
+		if err != nil {
+			log.Error("init presigner", "err", err)
+			os.Exit(1)
+		}
+		log.Info("presigned URLs enabled (IRSA web identity)", "region", cfg.S3Region, "expiry", cfg.PresignExpiry)
+	default:
+		log.Warn("presigned URLs disabled (no S3 credentials: set S3_ACCESS_KEY for static, or run with IRSA)")
 	}
 
 	srv := api.NewServer(st, expander, api.NewPresignerAdapter(presigner), cfg, log)
