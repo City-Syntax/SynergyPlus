@@ -20,7 +20,7 @@ kind: Kustomization
 #
 # RUNNER IMAGE: runner pods are created by the operator from RunnerPool CRs;
 # kustomize can't remap a CRD field. NOTE: release-images.yml tags the runner
-# image by platform SEMVER ONLY (e.g. :0.6.2, :latest) — it does NOT publish a
+# image by platform SEMVER ONLY (e.g. :0.6.3, :latest) — it does NOT publish a
 # per-engineVersion tag, so the operator's historical :<engineVersion> default
 # (ADR-0015) resolves to a non-existent tag (e.g. :24.1.0 -> 404). Production
 # RunnerPools MUST therefore pin spec.image to a real published tag/digest.
@@ -32,9 +32,9 @@ resources:
 images:
   - name: ghcr.io/synergyplus/operator
     newName: ghcr.io/city-syntax/synergyplus-operator
-    newTag: "0.6.2"
+    newTag: "0.6.3"
   - name: ghcr.io/synergyplus/apiserver
     newName: ghcr.io/city-syntax/synergyplus-apiserver
-    newTag: "0.6.2"
+    newTag: "0.6.3"
   - name: ghcr.io/city-syntax/synergyplus-portal
-    newTag: "0.6.2"
+    newTag: "0.6.3"
