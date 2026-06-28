@@ -1,8 +1,8 @@
 """Object-storage shim for the Runner.
 
 Supports ``s3://bucket/key`` (S3 / MinIO via boto3) and ``file://`` / bare local
-paths (handy for tests). Ported from ``worker/synergy_worker/storage.py`` and
-extended with explicit credentials + region so it can talk to a self-hosted MinIO.
+paths (handy for tests). Includes explicit credentials + region so it can talk to
+a self-hosted MinIO.
 """
 
 from __future__ import annotations

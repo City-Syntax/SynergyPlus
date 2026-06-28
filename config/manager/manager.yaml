@@ -56,7 +56,15 @@ spec:
     metadata:
       labels: { app: synergyplus-apiserver }
     spec:
-      serviceAccountName: synergyplus-operator
+      # The apiserver is the internet-facing component and needs ZERO Kubernetes
+      # API access (it only talks to Postgres + S3), so it must NOT share the
+      # operator's cluster-wide SA — an apiserver compromise would otherwise be
+      # able to create Deployments anywhere → cluster takeover (audit #3). Locally
+      # it runs under the namespace `default` SA (no RBAC = no cluster powers).
+      # The prod overlay (deploy/overlays/prod) replaces this with the dedicated,
+      # IRSA-annotated `synergyplus-apiserver` SA created in SynergyPlusIAC, which
+      # is why this field stays present (its JSON-patch `replace` needs it).
+      serviceAccountName: default
       containers:
         - name: apiserver
           image: ghcr.io/synergyplus/apiserver:latest

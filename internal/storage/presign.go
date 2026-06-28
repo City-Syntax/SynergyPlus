@@ -1,7 +1,9 @@
 // Package storage mints short-lived presigned S3 URLs so researchers transfer
 // files with only their API key — the apiserver's own S3 credentials never leave
 // the cluster (ACCEPTANCE A3). It wraps an S3-compatible endpoint (MinIO locally,
-// AWS S3 in the cloud) via the minio-go client.
+// AWS S3 in the cloud) via the minio-go client. In addition to presigned URL
+// minting (PresignPut, PresignGet), the Presigner also owns direct in-cluster
+// object listing via List, which enumerates artifacts without client exposure.
 //
 // Endpoint split (ACCEPTANCE A4): the URLs are presigned against
 // S3_PUBLIC_ENDPOINT (falling back to S3_ENDPOINT) so the host baked into the
@@ -23,7 +25,9 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// Presigner mints presigned PUT/GET URLs against an S3-compatible store.
+// Presigner mints presigned PUT/GET URLs against an S3-compatible store and
+// also performs direct in-cluster object listing via List (not just presigned
+// URL minting).
 //
 // Two clients on purpose: signClient is pointed at the client-reachable public
 // endpoint so minted URLs are signed for a host the researcher can reach (A4);
@@ -137,7 +141,7 @@ func newClient(endpoint string, creds *credentials.Credentials, region string) (
 func (p *Presigner) ExpiresIn() time.Duration { return p.expiry }
 
 // PresignPut mints a presigned PUT URL for bucket/key. A leaked URL can only
-// write that exact object (ACCEPTANCE C2). Returns the URL and the method.
+// write that exact object (ACCEPTANCE C2). Returns the presigned URL.
 func (p *Presigner) PresignPut(ctx context.Context, bucket, key string) (string, error) {
 	u, err := p.signClient.PresignedPutObject(ctx, bucket, key, p.expiry)
 	if err != nil {

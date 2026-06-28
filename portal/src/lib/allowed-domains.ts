@@ -1,7 +1,20 @@
-// Pure formatting helper for the email-domain allow-list, with no environment
-// access — safe to import from client components (which receive the list as a
-// prop) as well as the server. The list itself is configured server-side in
-// env.ts from ALLOWED_EMAIL_DOMAINS.
+// Pure helpers for the email-domain allow-list, with no environment access —
+// safe to import from client components (which receive the list as a prop) as
+// well as the server. The list itself is configured server-side in env.ts from
+// ALLOWED_EMAIL_DOMAINS.
+
+/**
+ * Returns true when the email's domain (case-insensitive) appears in the
+ * provided allow-list. Both server enforcement (auth.ts) and client UX
+ * (LoginForm.tsx) delegate here so the normalisation can never drift.
+ */
+export function isEmailDomainAllowed(
+  email: string,
+  domains: readonly string[],
+): boolean {
+  const domain = email.split("@")[1]?.toLowerCase();
+  return !!domain && domains.includes(domain);
+}
 
 /**
  * Human-readable label for a set of allowed email domains, e.g. "@a.com or

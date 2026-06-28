@@ -6,7 +6,7 @@ export type ApiKeyRow = {
   name: string;
   created_at: string;
   revoked_at: string | null;
-  last4: string;
+  hashTail: string;
 };
 
 /**
@@ -26,15 +26,10 @@ export function hashKey(rawKey: string): string {
   return createHash("sha256").update(rawKey, "utf8").digest("hex");
 }
 
-/** A non-sensitive suffix for display in the key list, e.g. "…a1b2". */
-function last4(rawKey: string): string {
-  return rawKey.slice(-4);
-}
-
 export async function createApiKey(
   userId: string,
   name: string,
-): Promise<{ id: string; rawKey: string }> {
+): Promise<{ id: string; rawKey: string; name: string }> {
   const rawKey = generateRawKey();
   const keyHash = hashKey(rawKey);
   const cleanName = name.trim().slice(0, 80) || "default";
@@ -44,10 +39,7 @@ export async function createApiKey(
      RETURNING id`,
     [userId, keyHash, cleanName],
   );
-  // Persist a non-sensitive last4 hint by reusing the name column? No — we keep
-  // last4 derivable only at creation. We store it client-side display via the
-  // returned rawKey; for the list we derive a masked label from the hash.
-  return { id: rows[0].id, rawKey };
+  return { id: rows[0].id, rawKey, name: cleanName };
 }
 
 export async function listApiKeys(userId: string): Promise<ApiKeyRow[]> {
@@ -69,9 +61,9 @@ export async function listApiKeys(userId: string): Promise<ApiKeyRow[]> {
     name: r.name,
     created_at: r.created_at,
     revoked_at: r.revoked_at,
-    // We never stored the raw key, so we show a stable masked tail derived from
+    // We never stored the raw key, so we show a stable fingerprint derived from
     // the hash (last 4 hex chars). It's only a visual disambiguator.
-    last4: r.key_hash.slice(-4),
+    hashTail: r.key_hash.slice(-4),
   }));
 }
 

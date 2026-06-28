@@ -24,8 +24,10 @@ const (
 
 // fakeStore implements dataStore for handler tests (no Postgres).
 type fakeStore struct {
-	sims    map[string]*store.Simulation
-	results map[string]*store.Result
+	sims      map[string]*store.Simulation
+	results   map[string]*store.Result
+	batches   map[string]*store.Batch
+	batchSims map[string][]store.Simulation
 }
 
 func (f *fakeStore) UserIDForKeyHash(_ context.Context, keyHash string) (string, error) {
@@ -50,16 +52,20 @@ func (f *fakeStore) HasResult(_ context.Context, h string) (bool, error) {
 	_, ok := f.results[h]
 	return ok, nil
 }
-func (f *fakeStore) InsertSimulation(context.Context, store.InsertSimulationParams) (string, string, error) {
-	return "", "", nil
+func (f *fakeStore) InsertSimulation(context.Context, store.InsertSimulationParams) (string, error) {
+	return "", nil
 }
-func (f *fakeStore) ListBatchSimulations(context.Context, string, int, int) ([]store.Simulation, int, error) {
-	return nil, 0, nil
+func (f *fakeStore) ListBatchSimulations(_ context.Context, batchID string, _, _ int) ([]store.Simulation, int, error) {
+	sims := f.batchSims[batchID]
+	return sims, len(sims), nil
 }
 func (f *fakeStore) CreateBatch(context.Context, string, int, *string) (string, error) {
 	return "", nil
 }
-func (f *fakeStore) GetBatch(context.Context, string) (*store.Batch, error) {
+func (f *fakeStore) GetBatch(_ context.Context, id string) (*store.Batch, error) {
+	if b, ok := f.batches[id]; ok {
+		return b, nil
+	}
 	return nil, store.ErrNotFound
 }
 func (f *fakeStore) FindBatchByIdempotencyKey(context.Context, string, string) (*store.Batch, error) {

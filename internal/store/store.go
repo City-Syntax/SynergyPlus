@@ -145,6 +145,30 @@ func (s *Store) HasResult(ctx context.Context, contentHash string) (bool, error)
 
 // --- Simulations --------------------------------------------------------------
 
+// simulationColumns is the shared SELECT projection for app.simulations queries.
+// Both GetSimulation and ListBatchSimulations use it so a column add/reorder
+// only needs one edit and can't produce a mismatched Scan.
+const simulationColumns = `id::text, batch_id::text, user_id::text, engine_version, priority,
+	       model_ref, weather_ref, model_sha256, weather_sha256, extraction_spec,
+	       content_hash, state, runner_id, attempts, error, created_at, started_at, finished_at`
+
+// rowScanner is satisfied by both pgx.Row (QueryRow) and pgx.Rows (Query/Next),
+// letting scanSimulation serve both code paths from a single function.
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+// scanSimulation scans one app.simulations row (projected via simulationColumns)
+// into a Simulation value.
+func scanSimulation(row rowScanner) (Simulation, error) {
+	var sim Simulation
+	err := row.Scan(&sim.ID, &sim.BatchID, &sim.UserID, &sim.EngineVersion, &sim.Priority,
+		&sim.ModelRef, &sim.WeatherRef, &sim.ModelSHA256, &sim.WeatherSHA256, &sim.ExtractionSpec,
+		&sim.ContentHash, &sim.State, &sim.RunnerID, &sim.Attempts, &sim.Error,
+		&sim.CreatedAt, &sim.StartedAt, &sim.FinishedAt)
+	return sim, err
+}
+
 // Simulation is a row of app.simulations (the fields the API surfaces).
 type Simulation struct {
 	ID             string
@@ -182,8 +206,9 @@ type InsertSimulationParams struct {
 	State          string // "queued" or "succeeded"
 }
 
-// InsertSimulation inserts one simulation and returns its id and state.
-func (s *Store) InsertSimulation(ctx context.Context, p InsertSimulationParams) (id, state string, err error) {
+// InsertSimulation inserts one simulation and returns its generated id.
+// The row's state always equals p.State — no trigger rewrites it on insert.
+func (s *Store) InsertSimulation(ctx context.Context, p InsertSimulationParams) (id string, err error) {
 	var finished *time.Time
 	if p.State == "succeeded" {
 		now := time.Now()
@@ -194,11 +219,11 @@ func (s *Store) InsertSimulation(ctx context.Context, p InsertSimulationParams) 
 			(batch_id, user_id, engine_version, priority, model_ref, weather_ref,
 			 model_sha256, weather_sha256, extraction_spec, content_hash, state, finished_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-		RETURNING id::text, state`,
+		RETURNING id::text`,
 		p.BatchID, p.UserID, p.EngineVersion, p.Priority, p.ModelRef, p.WeatherRef,
 		p.ModelSHA256, p.WeatherSHA256, nullableJSON(p.ExtractionSpec), p.ContentHash, p.State, finished,
-	).Scan(&id, &state)
-	return id, state, err
+	).Scan(&id)
+	return id, err
 }
 
 func nullableJSON(b []byte) interface{} {
@@ -210,16 +235,8 @@ func nullableJSON(b []byte) interface{} {
 
 // GetSimulation returns a simulation by id, or ErrNotFound.
 func (s *Store) GetSimulation(ctx context.Context, id string) (*Simulation, error) {
-	var sim Simulation
-	err := s.Pool.QueryRow(ctx, `
-		SELECT id::text, batch_id::text, user_id::text, engine_version, priority,
-		       model_ref, weather_ref, model_sha256, weather_sha256, extraction_spec,
-		       content_hash, state, runner_id, attempts, error, created_at, started_at, finished_at
-		  FROM app.simulations WHERE id=$1`, id).
-		Scan(&sim.ID, &sim.BatchID, &sim.UserID, &sim.EngineVersion, &sim.Priority,
-			&sim.ModelRef, &sim.WeatherRef, &sim.ModelSHA256, &sim.WeatherSHA256, &sim.ExtractionSpec,
-			&sim.ContentHash, &sim.State, &sim.RunnerID, &sim.Attempts, &sim.Error,
-			&sim.CreatedAt, &sim.StartedAt, &sim.FinishedAt)
+	sim, err := scanSimulation(s.Pool.QueryRow(ctx,
+		`SELECT `+simulationColumns+` FROM app.simulations WHERE id=$1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -236,11 +253,8 @@ func (s *Store) ListBatchSimulations(ctx context.Context, batchID string, limit,
 		`SELECT count(*) FROM app.simulations WHERE batch_id=$1`, batchID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.Pool.Query(ctx, `
-		SELECT id::text, batch_id::text, user_id::text, engine_version, priority,
-		       model_ref, weather_ref, model_sha256, weather_sha256, extraction_spec,
-		       content_hash, state, runner_id, attempts, error, created_at, started_at, finished_at
-		  FROM app.simulations WHERE batch_id=$1
+	rows, err := s.Pool.Query(ctx,
+		`SELECT `+simulationColumns+` FROM app.simulations WHERE batch_id=$1
 		  ORDER BY created_at ASC, id ASC
 		  LIMIT $2 OFFSET $3`, batchID, limit, offset)
 	if err != nil {
@@ -249,11 +263,8 @@ func (s *Store) ListBatchSimulations(ctx context.Context, batchID string, limit,
 	defer rows.Close()
 	var out []Simulation
 	for rows.Next() {
-		var sim Simulation
-		if err := rows.Scan(&sim.ID, &sim.BatchID, &sim.UserID, &sim.EngineVersion, &sim.Priority,
-			&sim.ModelRef, &sim.WeatherRef, &sim.ModelSHA256, &sim.WeatherSHA256, &sim.ExtractionSpec,
-			&sim.ContentHash, &sim.State, &sim.RunnerID, &sim.Attempts, &sim.Error,
-			&sim.CreatedAt, &sim.StartedAt, &sim.FinishedAt); err != nil {
+		sim, err := scanSimulation(rows)
+		if err != nil {
 			return nil, 0, err
 		}
 		out = append(out, sim)
@@ -262,6 +273,27 @@ func (s *Store) ListBatchSimulations(ctx context.Context, batchID string, limit,
 }
 
 // --- Batches ------------------------------------------------------------------
+
+// batchColumns is the shared SELECT projection for app.batches queries.
+// GetBatch and FindBatchByIdempotencyKey both use it via getBatchWhere.
+const batchColumns = `id::text, user_id::text, state, total, succeeded, failed, idempotency_key, created_at`
+
+// getBatchWhere executes a SELECT with batchColumns against app.batches with
+// the supplied WHERE clause and positional arguments. Returns ErrNotFound when
+// no row matches.
+func (s *Store) getBatchWhere(ctx context.Context, where string, args ...any) (*Batch, error) {
+	var b Batch
+	err := s.Pool.QueryRow(ctx,
+		`SELECT `+batchColumns+` FROM app.batches WHERE `+where, args...).
+		Scan(&b.ID, &b.UserID, &b.State, &b.Total, &b.Succeeded, &b.Failed, &b.IdempotencyKey, &b.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
 
 // Batch is a row of app.batches.
 type Batch struct {
@@ -289,35 +321,13 @@ func (s *Store) CreateBatch(ctx context.Context, userID string, total int, idemp
 
 // GetBatch returns a batch by id, or ErrNotFound.
 func (s *Store) GetBatch(ctx context.Context, id string) (*Batch, error) {
-	var b Batch
-	err := s.Pool.QueryRow(ctx,
-		`SELECT id::text, user_id::text, state, total, succeeded, failed, idempotency_key, created_at
-		   FROM app.batches WHERE id=$1`, id).
-		Scan(&b.ID, &b.UserID, &b.State, &b.Total, &b.Succeeded, &b.Failed, &b.IdempotencyKey, &b.CreatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &b, nil
+	return s.getBatchWhere(ctx, "id=$1", id)
 }
 
 // FindBatchByIdempotencyKey returns the batch with a matching idempotency key
 // for the user, or ErrNotFound.
 func (s *Store) FindBatchByIdempotencyKey(ctx context.Context, userID, key string) (*Batch, error) {
-	var b Batch
-	err := s.Pool.QueryRow(ctx,
-		`SELECT id::text, user_id::text, state, total, succeeded, failed, idempotency_key, created_at
-		   FROM app.batches WHERE user_id=$1 AND idempotency_key=$2`, userID, key).
-		Scan(&b.ID, &b.UserID, &b.State, &b.Total, &b.Succeeded, &b.Failed, &b.IdempotencyKey, &b.CreatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &b, nil
+	return s.getBatchWhere(ctx, "user_id=$1 AND idempotency_key=$2", userID, key)
 }
 
 // ResyncStuckBatches is a belt-and-suspenders sweep against any missed rollup

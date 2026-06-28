@@ -1,6 +1,6 @@
 [project]
 name = "synergy-runner"
-version = "0.6.4"
+version = "0.6.5"
 description = "SynergyPlus pull-loop Runner — claim queued simulations, run EnergyPlus, extract Core Metrics, upload artifacts, write results."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -9,7 +9,7 @@ license-files = ["LICENSE"]
 authors = [
     { name = "SynergyPlus contributors", email = "tanryan777@gmail.com" },
 ]
-keywords = ["energyplus", "simulation", "building-energy", "worker", "queue"]
+keywords = ["energyplus", "simulation", "building-energy", "runner", "queue"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

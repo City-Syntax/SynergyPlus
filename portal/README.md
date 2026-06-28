@@ -68,9 +68,11 @@ Local dev has **no SMTP**, so email delivery is stubbed:
 3. **And** (dev only) the same link is surfaced in the UI — the "Check your inbox"
    screen shows a **Sign in now →** button. Click it; you're in.
 
-This is controlled by `PORTAL_DEV_LOGIN` (defaults on when `NODE_ENV !== production`).
-Set it to `0` to force the production behaviour (no link surfaced; you'd wire real
-email delivery into `src/lib/auth.ts`'s `sendMagicLink`).
+This is controlled by `PORTAL_DEV_LOGIN`. **Security: it is fail-closed** — OFF
+unless `PORTAL_DEV_LOGIN=1` is set explicitly, so a built image never exposes the
+backdoor by accident (anyone who can reach the portal with it on can log in as any
+allowed-domain user). Leave it unset in any deploy reachable beyond localhost; with
+it off the portal delivers links over SMTP via `src/lib/auth.ts`'s `sendMagicLink`.
 
 Non-allowed domains are rejected **before any link is generated** with:
 `Access is restricted to @urbanflow.co and @nus.edu.sg email addresses.`
@@ -80,10 +82,10 @@ Non-allowed domains are rejected **before any link is generated** with:
 | Var | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `postgres://synergy:synergy@localhost:5432/synergy?sslmode=disable` | Shared platform Postgres (CONTRACT §6). |
-| `BETTER_AUTH_SECRET` | dev placeholder | Session signing secret. **Override in prod** (`openssl rand -base64 32`). |
+| `BETTER_AUTH_SECRET` | dev placeholder | Session signing secret. **Required in prod** — the portal refuses to start if it's unset, <32 chars, or a known placeholder (`openssl rand -base64 32`). |
 | `BETTER_AUTH_URL` | `http://localhost:3000` | Portal base URL used for magic-link generation. |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8090` | API gateway base URL shown in Getting Started. |
-| `PORTAL_DEV_LOGIN` | on if not prod | Surface magic link in the UI for local testing. |
+| `PORTAL_DEV_LOGIN` | off (fail-closed) | Set to `1` to surface the magic link in the UI for local testing. Never set beyond localhost. |
 | `ALLOWED_EMAIL_DOMAINS` | _none_ (fail-closed) | Comma-separated email domains allowed to sign in (ADR-0009), e.g. `urbanflow.co,nus.edu.sg`. Unset blocks all logins. |
 
 ## Docker

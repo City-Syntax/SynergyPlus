@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DashboardData, RunningJob } from "@/lib/dashboard";
+import type { DashboardData, RunningSimulation } from "@/lib/dashboard";
 
 const POLL_MS = 5000;
 
@@ -37,7 +37,7 @@ export function LiveActivity({ initial }: { initial: DashboardData }) {
     };
   }, []);
 
-  const { metrics, runningJobs, cluster } = data;
+  const { metrics, runningSimulations, cluster } = data;
 
   return (
     <section className="space-y-4">
@@ -70,16 +70,16 @@ export function LiveActivity({ initial }: { initial: DashboardData }) {
         <div className="border-b border-border px-4 py-2.5 text-xs font-medium text-muted">
           Running now
         </div>
-        {runningJobs.length === 0 ? (
+        {runningSimulations.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted">
             {metrics.queued > 0
-              ? `Nothing running yet — ${metrics.queued} queued, waiting for a runner.`
-              : "No jobs running right now."}
+              ? `No simulations running — ${metrics.queued} queued, waiting for a runner.`
+              : "No simulations running."}
           </p>
         ) : (
           <ul className="divide-y divide-border">
-            {runningJobs.map((job) => (
-              <JobRow key={job.id} job={job} now={now} />
+            {runningSimulations.map((sim) => (
+              <SimulationRow key={sim.id} sim={sim} now={now} />
             ))}
           </ul>
         )}
@@ -88,25 +88,25 @@ export function LiveActivity({ initial }: { initial: DashboardData }) {
   );
 }
 
-function JobRow({ job, now }: { job: RunningJob; now: number }) {
-  const elapsed = job.startedAt ? Math.max(0, (now - Date.parse(job.startedAt)) / 1000) : null;
+function SimulationRow({ sim, now }: { sim: RunningSimulation; now: number }) {
+  const elapsed = sim.startedAt ? Math.max(0, (now - Date.parse(sim.startedAt)) / 1000) : null;
   return (
     <li className="flex items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-mono text-xs text-muted">{job.id.slice(0, 8)}</span>
+          <span className="font-mono text-xs text-muted">{sim.id.slice(0, 8)}</span>
           <span className="rounded bg-panel-2 px-1.5 py-0.5 text-xs text-muted">
-            EnergyPlus {job.engineVersion}
+            EnergyPlus {sim.engineVersion}
           </span>
-          {job.attempts > 1 && (
+          {sim.attempts > 1 && (
             <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-400">
-              attempt {job.attempts}
+              attempt {sim.attempts}
             </span>
           )}
         </div>
         <div className="mt-0.5 truncate text-xs text-muted">
-          {job.runnerId ? `runner ${job.runnerId}` : "assigning runner…"}
-          {job.batchId && " · batch"}
+          {sim.runnerId ? `runner ${sim.runnerId}` : "assigning runner…"}
+          {sim.batchId && " · batch"}
         </div>
       </div>
       <div className="shrink-0 text-right">

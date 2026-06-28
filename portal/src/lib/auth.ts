@@ -3,6 +3,7 @@ import { magicLink } from "better-auth/plugins";
 import { createAuthMiddleware, APIError } from "better-auth/api";
 import { Pool } from "pg";
 import { ALLOWED_DOMAINS, allowedDomainsLabel, env } from "./env";
+import { isEmailDomainAllowed } from "./allowed-domains";
 import { recordDevLink } from "./dev-magic-link";
 import { sendMagicLinkEmail } from "./mailer";
 
@@ -34,8 +35,7 @@ authPool.on("connect", (client) => {
 
 function isAllowedEmail(email: unknown): email is string {
   if (typeof email !== "string") return false;
-  const domain = email.split("@")[1]?.toLowerCase();
-  return !!domain && ALLOWED_DOMAINS.includes(domain);
+  return isEmailDomainAllowed(email, ALLOWED_DOMAINS);
 }
 
 export const auth = betterAuth({
@@ -53,9 +53,10 @@ export const auth = betterAuth({
       // Only existing OR allowed-domain users; we create on first link.
       disableSignUp: false,
       sendMagicLink: async ({ email, token, url }) => {
-        // Dev (devLoginEnabled, default off in production): never send mail —
-        // log the link and stash it so the login UI can surface it. The link is
-        // a bearer credential, so we deliberately do NOT log it in production.
+        // Dev backdoor (devLoginEnabled; OFF unless PORTAL_DEV_LOGIN=1): never
+        // send mail — log the link and stash it so the login UI can surface it.
+        // The link is a bearer credential, so we deliberately do NOT log it when
+        // the backdoor is off (i.e. any real deploy).
         if (env.devLoginEnabled) {
           // eslint-disable-next-line no-console
           console.log(
@@ -67,7 +68,9 @@ export const auth = betterAuth({
         // Production: deliver over SMTP. Throws (surfaced to the caller) if SMTP
         // is unconfigured or the send fails — better than a silently dropped link.
         await sendMagicLinkEmail({ to: email, url });
-        console.log(`Magic link sent to ${email} (token: ${token})`);
+        // Never log the token/url here: it is a bearer credential and this is the
+        // production path (audit follow-up).
+        console.log(`Magic link sent to ${email}`);
       },
     }),
   ],

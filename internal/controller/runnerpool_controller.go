@@ -113,14 +113,14 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, pool *sy
 	env := append([]corev1.EnvVar{}, r.RunnerEnv...)
 	env = append(env,
 		corev1.EnvVar{Name: "SP_ENGINE_VERSION", Value: pool.Spec.EngineVersion},
-		corev1.EnvVar{Name: "SP_PER_USER_CAP", Value: fmt.Sprintf("%d", caps(pool.Spec.DefaultUserConcurrency, 50))},
+		corev1.EnvVar{Name: "SP_PER_USER_CAP", Value: fmt.Sprintf("%d", orDefault(pool.Spec.DefaultUserConcurrency, 50))},
 		corev1.EnvVar{Name: "SP_RUNNER_ID", ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"},
 		}},
 	)
 
 	desired := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deployName(pool), Namespace: pool.Namespace, Labels: labels},
+		ObjectMeta: metav1.ObjectMeta{Name: resourceName(pool), Namespace: pool.Namespace, Labels: labels},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"synergyplus.io/pool": pool.Name}},
 			Template: corev1.PodTemplateSpec{
@@ -169,8 +169,8 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, pool *sy
 
 func (r *RunnerPoolReconciler) reconcileScaledObject(ctx context.Context, pool *synergyv1.RunnerPool) error {
 	min := int64(pool.Spec.MinReplicas)
-	max := int64(caps(pool.Spec.MaxReplicas, 200))
-	userCap := caps(pool.Spec.DefaultUserConcurrency, 50)
+	max := int64(orDefault(pool.Spec.MaxReplicas, 200))
+	userCap := orDefault(pool.Spec.DefaultUserConcurrency, 50)
 
 	// The KEDA trigger uses the eligible-depth query: the claim predicate from
 	// CONTRACT §2.2 WITHOUT the UPDATE (count of claimable rows for this version).
@@ -182,12 +182,12 @@ func (r *RunnerPoolReconciler) reconcileScaledObject(ctx context.Context, pool *
 
 	so := &unstructured.Unstructured{}
 	so.SetGroupVersionKind(scaledObjectGVK)
-	so.SetName(scaledObjectName(pool))
+	so.SetName(resourceName(pool))
 	so.SetNamespace(pool.Namespace)
 	so.SetLabels(map[string]string{"synergyplus.io/pool": pool.Name})
 
 	spec := map[string]any{
-		"scaleTargetRef":  map[string]any{"name": deployName(pool)},
+		"scaleTargetRef":  map[string]any{"name": resourceName(pool)},
 		"minReplicaCount": min,
 		"maxReplicaCount": max,
 		"triggers": []any{
@@ -233,10 +233,13 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func deployName(p *synergyv1.RunnerPool) string       { return "runner-" + p.Name }
-func scaledObjectName(p *synergyv1.RunnerPool) string { return "runner-" + p.Name }
+// resourceName returns the shared name used for a RunnerPool's Deployment,
+// its KEDA ScaledObject, and the ScaledObject's scaleTargetRef. All three
+// must agree so the ScaledObject can locate its target Deployment.
+func resourceName(p *synergyv1.RunnerPool) string { return "runner-" + p.Name }
+
 func deployKey(p *synergyv1.RunnerPool) types.NamespacedName {
-	return types.NamespacedName{Name: deployName(p), Namespace: p.Namespace}
+	return types.NamespacedName{Name: resourceName(p), Namespace: p.Namespace}
 }
 
 // runnerImageRepo is the canonical Runner image repository. The tag is derived
@@ -254,7 +257,9 @@ func runnerImage(pool *synergyv1.RunnerPool) string {
 	return runnerImageRepo + ":" + pool.Spec.EngineVersion
 }
 
-func caps(v, def int32) int32 {
+// orDefault returns v if v > 0, otherwise returns def. It supplies a default
+// for unset (zero-value) int32 spec fields; it does NOT clamp an upper bound.
+func orDefault(v, def int32) int32 {
 	if v <= 0 {
 		return def
 	}

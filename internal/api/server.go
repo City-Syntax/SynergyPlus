@@ -22,7 +22,7 @@ type dataStore interface {
 	GetSimulation(ctx context.Context, id string) (*store.Simulation, error)
 	GetResult(ctx context.Context, contentHash string) (*store.Result, error)
 	HasResult(ctx context.Context, contentHash string) (bool, error)
-	InsertSimulation(ctx context.Context, p store.InsertSimulationParams) (id, state string, err error)
+	InsertSimulation(ctx context.Context, p store.InsertSimulationParams) (id string, err error)
 	ListBatchSimulations(ctx context.Context, batchID string, limit, offset int) ([]store.Simulation, int, error)
 	CreateBatch(ctx context.Context, userID string, total int, idempotencyKey *string) (string, error)
 	GetBatch(ctx context.Context, id string) (*store.Batch, error)

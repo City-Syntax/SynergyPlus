@@ -31,15 +31,14 @@ export const env = {
     process.env.BETTER_AUTH_SECRET ||
     "dev-only-insecure-secret-change-me-0123456789abcdef",
 
-  // Public base URL of the SynergyPlus API gateway (CONTRACT §3) — shown in the
-  // Getting Started examples so researchers copy a working command.
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8090",
-
-  // When true, magic-link login codes are surfaced in the UI (no real mailbox
-  // needed). Defaults to on unless NODE_ENV === 'production'.
-  devLoginEnabled:
-    (process.env.PORTAL_DEV_LOGIN ?? (process.env.NODE_ENV !== "production" ? "1" : "0")) ===
-    "1",
+  // Dev magic-link backdoor: surfaces sign-in links in the UI/console with no
+  // mailbox, which means anyone who can reach the portal can log in as any
+  // allowed-domain user. SECURITY (audit #2): fail-CLOSED — OFF unless
+  // PORTAL_DEV_LOGIN=1 is set explicitly. There is deliberately no NODE_ENV-based
+  // default, so a built image can never enable it by accident; a real deploy just
+  // never sets the flag, and the local compose stack opts in explicitly while
+  // binding the portal to localhost.
+  devLoginEnabled: process.env.PORTAL_DEV_LOGIN === "1",
 
   // Sender shown on outgoing magic-link mail. RFC-5322 form is accepted, e.g.
   // "SynergyPlus <noreply@yourdomain.com>".

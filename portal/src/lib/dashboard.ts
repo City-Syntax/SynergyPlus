@@ -10,7 +10,7 @@ import { pool } from "./db";
  * filter on `user_id`; cluster health is global (all tenants) for context.
  */
 
-export type JobMetrics = {
+export type SimulationMetrics = {
   /** The user's simulations currently running. */
   running: number;
   /** The user's simulations waiting in the queue. */
@@ -23,7 +23,7 @@ export type JobMetrics = {
   avgRunSeconds: number | null;
 };
 
-export type RunningJob = {
+export type RunningSimulation = {
   id: string;
   engineVersion: string;
   runnerId: string | null;
@@ -40,14 +40,14 @@ export type ClusterHealth = {
 };
 
 export type DashboardData = {
-  metrics: JobMetrics;
-  runningJobs: RunningJob[];
+  metrics: SimulationMetrics;
+  runningSimulations: RunningSimulation[];
   cluster: ClusterHealth;
 };
 
-const RUNNING_JOBS_LIMIT = 25;
+const RUNNING_SIMULATIONS_LIMIT = 25;
 
-async function userMetrics(userId: string): Promise<JobMetrics> {
+async function userMetrics(userId: string): Promise<SimulationMetrics> {
   const { rows } = await pool.query<{
     running: string;
     queued: string;
@@ -78,7 +78,7 @@ async function userMetrics(userId: string): Promise<JobMetrics> {
   };
 }
 
-async function runningJobs(userId: string): Promise<RunningJob[]> {
+async function runningSimulations(userId: string): Promise<RunningSimulation[]> {
   const { rows } = await pool.query<{
     id: string;
     engine_version: string;
@@ -92,7 +92,7 @@ async function runningJobs(userId: string): Promise<RunningJob[]> {
       WHERE user_id = $1 AND state = 'running'
       ORDER BY started_at DESC NULLS LAST
       LIMIT $2`,
-    [userId, RUNNING_JOBS_LIMIT],
+    [userId, RUNNING_SIMULATIONS_LIMIT],
   );
   return rows.map((r) => ({
     id: r.id,
@@ -121,10 +121,10 @@ async function clusterHealth(): Promise<ClusterHealth> {
 }
 
 export async function getDashboardData(userId: string): Promise<DashboardData> {
-  const [metrics, jobs, cluster] = await Promise.all([
+  const [metrics, sims, cluster] = await Promise.all([
     userMetrics(userId),
-    runningJobs(userId),
+    runningSimulations(userId),
     clusterHealth(),
   ]);
-  return { metrics, runningJobs: jobs, cluster };
+  return { metrics, runningSimulations: sims, cluster };
 }

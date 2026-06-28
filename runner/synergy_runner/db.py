@@ -49,10 +49,10 @@ SELECT * FROM app.claim_simulation(
 )
 """
 
-# CONTRACT §2.3 — heartbeat (renew the lease while still owning the row). The
-# from-state, the M-4 runner_id fence, and the lease bump are owned by the guarded
-# function app.renew_lease (ADR-0013); it returns rows affected.
-HEARTBEAT_SQL = """
+# CONTRACT §2.3 — renew the lease while still owning the row. The from-state,
+# the M-4 runner_id fence, and the lease bump are owned by the guarded function
+# app.renew_lease (ADR-0013); it returns rows affected.
+RENEW_LEASE_SQL = """
 SELECT app.renew_lease(%(sim_id)s, %(runner_id)s, %(lease_seconds)s)
 """
 
@@ -98,7 +98,7 @@ class Database:
         except Exception:  # noqa: BLE001
             pass
 
-    def _reconnect(self) -> None:
+    def reconnect(self) -> None:
         try:
             self.conn.close()
         except Exception:  # noqa: BLE001
@@ -137,13 +137,13 @@ class Database:
             cur.close()
         return dict(row) if row else None
 
-    # -- heartbeat -----------------------------------------------------------
+    # -- lease renewal -------------------------------------------------------
 
-    def heartbeat(self, *, sim_id: str, runner_id: str, lease_seconds: int) -> int:
+    def renew_lease(self, *, sim_id: str, runner_id: str, lease_seconds: int) -> int:
         # app.renew_lease owns the from-state + M-4 fence and returns rows affected.
         cur = self.conn.cursor()
         cur.execute(
-            HEARTBEAT_SQL,
+            RENEW_LEASE_SQL,
             {"sim_id": sim_id, "runner_id": runner_id, "lease_seconds": lease_seconds},
         )
         row = cur.fetchone()
@@ -203,17 +203,6 @@ class Database:
             },
         )
         cur.close()
-
-    def lookup_result(self, content_hash: str) -> Optional[dict]:
-        cur = _dict_cursor(self.conn)
-        cur.execute(
-            "SELECT content_hash, verdict, metrics, artifact_uri "
-            "FROM app.results WHERE content_hash = %(ch)s",
-            {"ch": content_hash},
-        )
-        row = cur.fetchone()
-        cur.close()
-        return dict(row) if row else None
 
     def finish_simulation(
         self, *, sim_id: str, runner_id: str, succeeded: bool, error: Optional[str] = None

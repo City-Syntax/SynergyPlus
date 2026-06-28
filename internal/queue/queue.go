@@ -109,7 +109,7 @@ func (e *Expander) Expand(ctx context.Context, spec ExpandSpec) error {
 			ContentHash:    hash,
 			State:          state,
 		}
-		if _, _, err := e.store.InsertSimulation(ctx, p); err != nil {
+		if _, err := e.store.InsertSimulation(ctx, p); err != nil {
 			return err
 		}
 	}

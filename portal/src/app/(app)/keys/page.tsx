@@ -1,9 +1,9 @@
-import { getPortalUser } from "@/lib/session";
+import { getRequiredPortalUser } from "@/lib/session";
 import { listApiKeys } from "@/lib/api-keys";
 import { KeysManager } from "./KeysManager";
 
 export default async function KeysPage() {
-  const user = (await getPortalUser())!;
+  const user = await getRequiredPortalUser();
   const keys = await listApiKeys(user.userId);
 
   return (

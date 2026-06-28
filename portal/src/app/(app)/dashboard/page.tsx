@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { getPortalUser } from "@/lib/session";
+import { getRequiredPortalUser } from "@/lib/session";
 import { listApiKeys } from "@/lib/api-keys";
 import { getDashboardData } from "@/lib/dashboard";
 import { apiBaseUrlPublic } from "@/lib/env";
 import { LiveActivity } from "./LiveActivity";
 
 export default async function DashboardPage() {
-  const user = (await getPortalUser())!;
+  const user = await getRequiredPortalUser();
   const [keys, activity] = await Promise.all([
     listApiKeys(user.userId),
     getDashboardData(user.userId),

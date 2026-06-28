@@ -121,19 +121,26 @@ class SynergyClient:
     def _resolve_variant(self, v: Union[Variant, dict]) -> dict:
         """Resolve a batch variant's model (local paths uploaded) → request dict.
 
-        Accepts a :class:`Variant` or a raw dict. For dicts, ``model`` may be a
-        bare string (``"./a.idf"`` or ``"s3://..."``) or a ``{ref, sha256?}``
-        mapping; only bare local-path strings trigger an upload.
+        Accepts a :class:`Variant` or a raw dict. In both cases the model is
+        normalised to a bare string or :class:`ArtifactRef`, passed through
+        :meth:`_resolve_input` (which uploads local paths and passes s3:// strings
+        and :class:`ArtifactRef` values unchanged), then serialised to
+        ``{ref, sha256?}`` via :func:`as_ref`.
         """
         if isinstance(v, Variant):
-            return Variant(
-                model=self._resolve_input(v.model, _BUCKET_MODELS), name=v.name
-            ).to_dict()
+            resolved = self._resolve_input(v.model, _BUCKET_MODELS)
+            result: dict = {"model": as_ref(resolved)}
+            if v.name:
+                result["name"] = v.name
+            return result
 
         out = dict(v)
         model = out.get("model")
-        if isinstance(model, str) and is_local_path(model):
-            out["model"] = as_ref(self._resolve_input(model, _BUCKET_MODELS))
+        # Normalise a {ref, sha256?} mapping to ArtifactRef so _resolve_input
+        # can handle it uniformly; bare strings and ArtifactRefs pass through as-is.
+        if isinstance(model, dict):
+            model = ArtifactRef(**model)
+        out["model"] = as_ref(self._resolve_input(model, _BUCKET_MODELS))
         return out
 
     # -- health ----------------------------------------------------------------
@@ -160,7 +167,10 @@ class SynergyClient:
         ``"./tower.idf"``). Local paths are uploaded to the ``models``/``weather``
         bucket, sha256-hashed, and submitted as ``{ref, sha256}`` so the
         content-hash cache works (CONTRACT §2.1). Identical files are not
-        re-uploaded. Local-path upload needs S3 config + boto3.
+        re-uploaded. By default, upload goes through the apiserver's presigned-URL
+        endpoint using only the API key (no boto3, no S3 credentials). Supply any
+        of ``s3_endpoint``/``s3_access_key``/``s3_secret_key`` (or the ``S3_*``
+        env vars) to use the direct-S3 backend instead.
         """
         model = self._resolve_input(model, _BUCKET_MODELS)
         weather = self._resolve_input(weather, _BUCKET_WEATHER)
@@ -207,12 +217,14 @@ class SynergyClient:
     def download_results(self, sim_id: str, dest_dir: str) -> List[str]:
         """Download every result artifact for *sim_id* into *dest_dir*.
 
-        Resolves the result's ``artifactUri`` (``s3://results/<content_hash>/``,
-        CONTRACT §4) via ``GET /v1/results/{id}``, then downloads all objects
-        under that prefix — ``eplusout.err``, ``*.sql``, ``synergy-summary.json``,
-        etc. Returns the list of local file paths written.
+        Fetches result metadata via ``GET /v1/results/{id}``, then downloads all
+        artifacts — ``eplusout.err``, ``*.sql``, ``synergy-summary.json``, etc.
+        Returns the list of local file paths written.
 
-        Needs S3 config + boto3 (same as local-path upload). Raises
+        By default, download goes through the apiserver's presigned-URL endpoint
+        using only the API key (no boto3, no S3 credentials). Supply any of
+        ``s3_endpoint``/``s3_access_key``/``s3_secret_key`` (or the ``S3_*`` env
+        vars) to use the direct-S3 backend instead. Raises
         :class:`~synergyplus.storage.StorageError` if no artifacts are present
         (e.g. a failed run that produced none).
         """
