@@ -1,6 +1,6 @@
 # SynergyPlus Runner (`synergy_runner`)
 
-The long-lived **pull-loop worker** (CONTRACT §2, §5; PROPOSAL §6.4). One Runner
+The long-lived **Runner pull-loop** (CONTRACT §2, §5; PROPOSAL §6.4). One Runner
 serves a single engine version. It loops:
 
 **claim** a queued simulation → **fetch** model + weather → **run** the engine →
@@ -107,7 +107,7 @@ synergy_runner/
   heartbeat.py  background lease-renewal thread
   engine.py     run the energyplus binary
   metrics.py    Core Metrics from eplusout.sql (SQLite)
-  parse_err.py  .err → verdict (ported from worker/)
+  parse_err.py  .err → verdict
   storage.py    S3/MinIO + file:// download / upload_dir / sha256_file
   loop.py       claim → fetch → run → parse → extract → upload → write
   __main__.py   `synergy-runner` entrypoint

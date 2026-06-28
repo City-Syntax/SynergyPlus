@@ -153,7 +153,7 @@ export function KeysManager({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
                       {k.name}
                     </span>
                     <code className="rounded bg-panel-2 px-1.5 py-0.5 font-mono text-[11px] text-muted">
-                      sp_live_…{k.last4}
+                      #{k.hashTail}
                     </code>
                     {k.revoked_at && (
                       <span className="rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">

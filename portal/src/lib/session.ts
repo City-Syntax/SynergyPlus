@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { upsertAppUser } from "./db";
 
@@ -26,4 +27,14 @@ export async function getPortalUser(): Promise<PortalUser | null> {
     email: session.user.email,
     name: session.user.name || session.user.email.split("@")[0],
   };
+}
+
+/**
+ * Like `getPortalUser()` but redirects to "/login" when there is no valid
+ * session, so callers never receive null and can skip the non-null assertion.
+ */
+export async function getRequiredPortalUser(): Promise<PortalUser> {
+  const user = await getPortalUser();
+  if (!user) redirect("/login");
+  return user;
 }

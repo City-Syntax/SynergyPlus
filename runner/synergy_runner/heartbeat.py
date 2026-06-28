@@ -41,7 +41,7 @@ class Heartbeat:
         while not self._stop.is_set():
             try:
                 assert self._db is not None
-                self._db.heartbeat(
+                self._db.renew_lease(
                     sim_id=self._sim_id,
                     runner_id=self._runner_id,
                     lease_seconds=self._lease_seconds,
@@ -50,7 +50,7 @@ class Heartbeat:
                 print(f"[heartbeat] WARNING renew failed: {exc}", flush=True)
                 try:
                     assert self._db is not None
-                    self._db._reconnect()
+                    self._db.reconnect()
                 except Exception:  # noqa: BLE001
                     pass
             self._stop.wait(self._interval)

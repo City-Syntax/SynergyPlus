@@ -9,8 +9,7 @@ rest of the SDK never imports boto3 directly:
 
     StorageBackend
       ├─ upload_input(local_path, bucket, *, prefix) -> (ref, sha256)
-      ├─ download_prefix(s3_uri, dest_dir)           -> [local paths]
-      └─ get_text(s3_uri)                            -> str
+      └─ download_result(ResultLocation, dest_dir)   -> [local paths]
 
 ``S3StorageBackend`` is the concrete implementation that uses static S3
 credentials (works for local MinIO and AWS-with-creds). It is intentionally the
@@ -18,11 +17,11 @@ credentials (works for local MinIO and AWS-with-creds). It is intentionally the
 so plain ``pip install synergyplus`` users who only submit ``s3://`` refs never
 need boto3.
 
-Design note (see README "Production: presigned URLs"): a future
-``PresignedURLBackend`` that asks the apiserver to mint short-lived upload/
-download URLs — so the researcher needs only their API key, no static S3
-credentials — can implement this same interface and slot in behind the
-unchanged ``SynergyClient`` methods.
+``PresignedURLBackend`` is the API-key-only implementation that asks the
+apiserver to mint short-lived upload/download URLs — so the researcher needs
+only their API key, no static S3 credentials. Both backends implement the same
+:class:`StorageBackend` interface and slot in transparently behind the
+``SynergyClient`` methods.
 """
 
 from __future__ import annotations
@@ -83,10 +82,6 @@ class StorageBackend:
 
     def download_result(self, location: ResultLocation, dest_dir: str) -> List[str]:  # pragma: no cover
         """Download every artifact for *location* into *dest_dir*; return local paths."""
-        raise NotImplementedError
-
-    def read_artifact_text(self, location: ResultLocation, name: str) -> str:  # pragma: no cover
-        """Fetch a single named artifact's body and decode it as UTF-8 text."""
         raise NotImplementedError
 
 
@@ -200,13 +195,6 @@ class S3StorageBackend(StorageBackend):
             )
         return self._download_prefix(location.artifact_uri, dest_dir)
 
-    def read_artifact_text(self, location: "ResultLocation", name: str) -> str:
-        """Read one named artifact under the result's prefix as UTF-8 text."""
-        if not location.artifact_uri:
-            raise StorageError(f"simulation {location.sim_id} has no artifactUri yet")
-        base = location.artifact_uri.rstrip("/")
-        return self._get_text(f"{base}/{name}")
-
     def _download_prefix(self, s3_uri: str, dest_dir: str) -> List[str]:
         """Download every object under *s3_uri* (an ``s3://bucket/prefix``) into
         *dest_dir*, preserving the key path below the prefix. Returns the local
@@ -234,15 +222,6 @@ class S3StorageBackend(StorageBackend):
             raise StorageError(f"no objects found under {s3_uri}")
         return written
 
-    def _get_text(self, s3_uri: str) -> str:
-        bucket, key = parse_s3_uri(s3_uri)
-        client = self._s3()
-        try:
-            obj = client.get_object(Bucket=bucket, Key=key)
-        except Exception as exc:  # noqa: BLE001
-            raise StorageError(f"failed to read {s3_uri}: {exc}") from exc
-        return obj["Body"].read().decode("utf-8")
-
 
 class PresignedURLBackend(StorageBackend):
     """API-key-only storage backend — **no boto3, no S3 credentials**.
@@ -252,16 +231,18 @@ class PresignedURLBackend(StorageBackend):
 
     * ``upload_input`` → ``POST /v1/uploads`` mints a short-lived presigned PUT;
       the file bytes are PUT straight to object storage at the returned URL.
-    * ``download_prefix`` / ``get_text`` → ``GET /v1/results/{sim_id}/artifacts``
-      returns short-lived presigned GET URLs, streamed to disk / read as text.
+    * ``download_result(ResultLocation, dest_dir)`` →
+      ``GET /v1/results/{sim_id}/artifacts`` returns short-lived presigned GET
+      URLs for every artifact; each is streamed to disk.
 
     The S3 credentials never leave the cluster: the only secret this backend holds
     is the researcher's API key (carried by the shared ``requests`` session). The
     sha256 is still computed locally and submitted so the content-hash cache works
     (ACCEPTANCE B4).
 
-    The presigned GETs are scoped per-result by the apiserver, so the download
-    methods key off ``location.sim_id`` (the ``artifact_uri`` is unused here).
+    The presigned GETs are scoped per-result by the apiserver, so
+    ``download_result`` keys off ``location.sim_id`` (the ``artifact_uri`` is
+    unused here).
     """
 
     # Maps the bucket name a caller passes to upload_input → the endpoint's kind.
@@ -346,22 +327,6 @@ class PresignedURLBackend(StorageBackend):
         if not written:
             raise StorageError(f"no artifacts downloaded for simulation {sim_id}")
         return written
-
-    def read_artifact_text(self, location: "ResultLocation", name: str) -> str:
-        """Fetch one named artifact's text (e.g. ``synergy-summary.json``).
-
-        Streams the matching presigned GET and decodes UTF-8.
-        """
-        sim_id = location.sim_id
-        for art in self._list_artifacts(sim_id):
-            if art.get("name") == name and art.get("url"):
-                try:
-                    resp = requests.get(art["url"], timeout=self.timeout)
-                    resp.raise_for_status()
-                except requests.RequestException as exc:
-                    raise StorageError(f"failed to read {name} for {sim_id}: {exc}") from exc
-                return resp.text
-        raise StorageError(f"artifact {name!r} not found for simulation {sim_id}")
 
     # -- endpoint plumbing ----------------------------------------------------
 

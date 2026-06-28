@@ -107,8 +107,10 @@ def process_simulation(cfg: RunnerConfig, db: Database, sim: dict) -> bool:
 
         # --- upload all artifacts to s3://results/<content_hash>/ -----------
         artifact_uri = f"s3://{cfg.bucket_results}/{ch}/"
+        uploaded = False
         try:
             storage.upload_dir(out_dir, artifact_uri, cfg=cfg)
+            uploaded = True
             print(f"[loop] uploaded artifacts -> {artifact_uri}", flush=True)
         except Exception as exc:  # noqa: BLE001 — surface but keep the verdict
             print(f"[loop] WARNING artifact upload failed: {exc}", flush=True)
@@ -118,7 +120,7 @@ def process_simulation(cfg: RunnerConfig, db: Database, sim: dict) -> bool:
             content_hash=ch,
             verdict=v.verdict,
             metrics=metrics,
-            artifact_uri=artifact_uri,
+            artifact_uri=artifact_uri if uploaded else None,
             artifact_ttl_days=cfg.artifact_ttl_days,
         )
 
@@ -219,7 +221,7 @@ def run_forever(cfg: RunnerConfig) -> None:
                 )
             except Exception as exc:  # noqa: BLE001 — DB blip: reconnect and retry
                 print(f"[runner] claim error: {exc}; reconnecting", flush=True)
-                db._reconnect()
+                db.reconnect()
                 time.sleep(cfg.poll_seconds)
                 continue
 

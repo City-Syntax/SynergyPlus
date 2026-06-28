@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { allowedDomainsLabel } from "@/lib/allowed-domains";
+import { allowedDomainsLabel, isEmailDomainAllowed } from "@/lib/allowed-domains";
 
 type DevLink = { url: string; token: string };
 
@@ -21,8 +21,7 @@ export function LoginForm({
   const domainsLabel = allowedDomainsLabel(allowedDomains);
 
   function clientDomainOk(value: string): boolean {
-    const domain = value.split("@")[1]?.toLowerCase();
-    return !!domain && allowedDomains.includes(domain);
+    return isEmailDomainAllowed(value, allowedDomains);
   }
 
   async function onSubmit(e: React.FormEvent) {

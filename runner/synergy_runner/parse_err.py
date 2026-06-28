@@ -1,7 +1,5 @@
 """Classify an EnergyPlus run from its ``eplusout.err`` file.
 
-Ported from ``worker/synergy_worker/parse_err.py``.
-
 EnergyPlus signals problems with ``** Severe  **`` and ``**  Fatal  **`` markers
 and a terminating summary line. The verdict here mirrors the API contract
 (CONTRACT §2 / results.verdict): clean | warnings | severe | fatal.

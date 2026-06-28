@@ -13,15 +13,16 @@ export async function POST(req: NextRequest) {
   const user = await getPortalUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  let name = "default";
+  let rawName = "";
   try {
     const body = (await req.json()) as { name?: string };
-    if (typeof body?.name === "string" && body.name.trim()) name = body.name;
+    if (typeof body?.name === "string") rawName = body.name;
   } catch {
     /* allow empty body → default name */
   }
 
-  const { id, rawKey } = await createApiKey(user.userId, name);
+  const { id, rawKey, name } = await createApiKey(user.userId, rawName);
   // The raw key is returned EXACTLY ONCE here and never persisted.
-  return NextResponse.json({ id, name: name.trim() || "default", rawKey }, { status: 201 });
+  // name is the cleaned value (trim, 80-char cap, fallback "default") from createApiKey.
+  return NextResponse.json({ id, name, rawKey }, { status: 201 });
 }
