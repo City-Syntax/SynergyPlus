@@ -1,4 +1,4 @@
-"""SynergyPlus Runner — the long-lived pull-loop worker (CONTRACT §2, §5).
+"""SynergyPlus Runner — the long-lived Runner pull-loop (CONTRACT §2, §5).
 
 Claims queued simulations for its engine version, runs EnergyPlus, parses the
 verdict from eplusout.err, extracts Core Metrics from eplusout.sql, uploads
@@ -9,4 +9,4 @@ from .config import RunnerConfig
 from .loop import content_hash, run_forever
 
 __all__ = ["RunnerConfig", "run_forever", "content_hash"]
-__version__ = "0.6.4"
+__version__ = "0.6.5"

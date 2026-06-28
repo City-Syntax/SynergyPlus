@@ -32,15 +32,15 @@ resources:
 images:
   - name: ghcr.io/synergyplus/operator
     newName: ghcr.io/city-syntax/synergyplus-operator
-    newTag: "0.6.4"
+    newTag: "0.6.5"
   - name: ghcr.io/synergyplus/apiserver
     newName: ghcr.io/city-syntax/synergyplus-apiserver
-    newTag: "0.6.4"
+    newTag: "0.6.5"
   - name: ghcr.io/city-syntax/synergyplus-portal
-    newTag: "0.6.4"
+    newTag: "0.6.5"
 
-# Run the apiserver under its dedicated IRSA ServiceAccount (the base uses
-# synergyplus-operator, which is fine locally but is NOT IRSA-annotated). The
+# Run the apiserver under its dedicated IRSA ServiceAccount (the base uses the
+# no-RBAC `default` SA, which is fine locally but is NOT IRSA-annotated). The
 # synergyplus-apiserver SA (created in SynergyPlusIAC, scoped S3) gives the pod a
 # web-identity token so it can presign uploads/downloads with no static keys.
 # The apiserver makes no Kubernetes API calls, so it needs no operator RBAC.
