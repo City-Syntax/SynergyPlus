@@ -4,44 +4,70 @@ import { CodeBlock } from "@/components/CodeBlock";
 export default function GettingStartedPage() {
   const api = apiBaseUrlPublic;
 
-  const curlSubmit = `curl -X POST ${api}/v1/simulations \\
-  -H "Authorization: Bearer $SYNERGY_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "engineVersion": "24.1.0",
-    "model":   { "ref": "s3://models/sample.idf",   "sha256": "<model_sha256>" },
-    "weather": { "ref": "s3://weather/sample.epw",   "sha256": "<weather_sha256>" },
-    "priority": 1
-  }'`;
+  // --- Python: the primary path ------------------------------------------
+  // The same run shown two ways. In a notebook a bare trailing expression
+  // renders inline; in a script you print and guard __main__.
+  const pyNotebook = `# Cell 1 — install the SDK into this kernel (run once)
+%pip install synergyplus
 
-  const curlStatus = `# Poll a simulation until it finishes
-curl ${api}/v1/simulations/<id> \\
-  -H "Authorization: Bearer $SYNERGY_API_KEY"
+# Cell 2 — connect. API key only: local files upload via presigned URLs,
+# so there are no S3 credentials to manage.
+from synergyplus import SynergyClient
 
-# Fetch extracted metrics + artifact when done
-curl ${api}/v1/results/<id> \\
-  -H "Authorization: Bearer $SYNERGY_API_KEY"`;
+sp = SynergyClient("${api}", token="sp_live_...")
+sp.healthz()          # True once the API is reachable
 
-  const pySubmit = `from synergyplus import SynergyClient  # pip install synergyplus
-
-# API key only — local files upload automatically via presigned URLs
-# (no S3 credentials needed).
-sp = SynergyClient("${api}", token="sp_live_...")   # or env SYNERGY_API_KEY
-
-# Pass local paths: the SDK uploads them for you, content-addressed by
-# sha256 (an identical file already on the platform is a cache hit).
+# Cell 3 — submit a local model + weather, then block until it finishes.
 sim = sp.submit_simulation(
     engine_version="24.1.0",
-    model="./tower.idf",        # local path → uploaded automatically
-    weather="./chicago.epw",    # local path → uploaded automatically
+    model="./baseline.idf",     # local path → uploaded for you
+    weather="./chicago.epw",
     priority=1,
 )
-print("submitted:", sim["id"], sim["state"])
+sp.wait(sim["id"])              # queued → running → succeeded
+sim["id"]
 
-sp.wait(sim["id"])                       # blocks until succeeded/failed
-print(sp.get_metrics(sim["id"])["site_eui"])
+# Cell 4 — a bare expression renders inline, so the metrics show as a dict.
+sp.get_metrics(sim["id"])
+# {'site_eui': 354.82, 'source_eui': 1123.7,
+#  'total_site_energy': 82.41, 'total_source_energy': 260.99,
+#  'unmet_heating_hours': 0, 'unmet_cooling_hours': 0, 'run_seconds': 1.907}
 
-sp.download_results(sim["id"], "./out")  # pull artifacts (.csv, .err, ...) locally`;
+# Cell 5 — pull the raw artifacts (.err, .csv, .sql, …) beside the notebook.
+sp.download_results(sim["id"], "./out")`;
+
+  const pyScript = `"""run_simulation.py — submit one EnergyPlus run and report its metrics."""
+import os
+
+from synergyplus import SynergyClient
+
+
+def main() -> None:
+    # API key only — the SDK uploads local files via presigned URLs (no S3 creds).
+    sp = SynergyClient("${api}", token=os.environ["SYNERGY_API_KEY"])
+
+    sim = sp.submit_simulation(
+        engine_version="24.1.0",
+        model="./baseline.idf",     # local path → uploaded automatically
+        weather="./chicago.epw",
+        priority=1,
+    )
+    print("submitted:", sim["id"], sim["state"])
+
+    sp.wait(sim["id"])              # blocks until succeeded / failed
+    metrics = sp.get_metrics(sim["id"])
+    print("site EUI:", metrics["site_eui"])
+
+    sp.download_results(sim["id"], "./out")   # artifacts → ./out
+
+
+if __name__ == "__main__":
+    main()`;
+
+  const pyScriptRun = `export SYNERGY_API_KEY="sp_live_..."
+python run_simulation.py
+# submitted: afc98645-… queued
+# site EUI: 354.82`;
 
   const pyBatch = `from synergyplus import Variant
 
@@ -59,65 +85,101 @@ print(batch["batchId"], batch["state"])
 status = sp.get_batch(batch["batchId"])
 print(f'{status["succeeded"]}/{status["total"]} done, {status["failed"]} failed')`;
 
+  // --- REST: only when you're not in Python ------------------------------
+  const curlSubmit = `# Inputs are referenced by object-storage URI + sha256. Upload them first
+# (the Python SDK does this for you from a local path).
+curl -X POST ${api}/v1/simulations \\
+  -H "Authorization: Bearer $SYNERGY_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "engineVersion": "24.1.0",
+    "model":   { "ref": "s3://models/sample.idf",  "sha256": "<model_sha256>" },
+    "weather": { "ref": "s3://weather/sample.epw",  "sha256": "<weather_sha256>" },
+    "priority": 1
+  }'`;
+
+  const curlStatus = `# Poll a simulation until it reaches a terminal state
+curl ${api}/v1/simulations/<id> \\
+  -H "Authorization: Bearer $SYNERGY_API_KEY"
+
+# Fetch the verdict, Core Metrics, and artifact URI when done
+curl ${api}/v1/results/<id> \\
+  -H "Authorization: Bearer $SYNERGY_API_KEY"`;
+
   return (
     <div className="space-y-9">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Getting Started</h1>
         <p className="mt-1.5 text-sm text-muted">
-          Submit EnergyPlus simulations to the SynergyPlus API in a few lines.
-          Every request authenticates with an API key as a{" "}
+          Run EnergyPlus simulations from Python in a few lines. The{" "}
           <code className="rounded bg-panel-2 px-1 py-0.5 font-mono text-xs">
-            Bearer
+            synergyplus
           </code>{" "}
-          token.
+          SDK uploads your local{" "}
+          <code className="font-mono">.idf</code>/<code className="font-mono">.epw</code>{" "}
+          files and pulls results back with just an API key — no S3 credentials.
+          Not in Python? The same API is one{" "}
+          <code className="rounded bg-panel-2 px-1 py-0.5 font-mono text-xs">
+            curl
+          </code>{" "}
+          away.
         </p>
       </header>
 
       <Section
         step="1"
         title="Create an API key"
-        body="Head to API Keys → Create key. Copy the raw key (shown once) and export it."
+        body="Head to API Keys → Create key. Copy the raw key (shown once) and export it so the SDK and curl can read it."
       >
-        <CodeBlock
-          title="shell"
-          code={`export SYNERGY_API_KEY="sp_live_..."`}
-        />
+        <CodeBlock title="shell" code={`export SYNERGY_API_KEY="sp_live_..."`} />
       </Section>
 
       <Section
         step="2"
-        title="Check connectivity"
-        body="The health endpoint needs no auth — use it to confirm the API base URL."
+        title="Install the SDK"
+        body="The default backend is API-key-only and uses plain HTTP — no boto3, no S3 credentials. Requires Python 3.9+."
       >
-        <CodeBlock title="shell" code={`curl ${api}/healthz\n# → 200 ok`} />
+        <CodeBlock title="shell" code={`pip install synergyplus`} />
       </Section>
 
       <Section
         step="3"
-        title="Submit a simulation (curl)"
-        body="POST /v1/simulations returns 201 with the simulation id and state. The model/weather sha256 feed the content-addressed result cache (a cache hit returns instantly)."
+        title="Run your first simulation"
+        body="Point the SDK at local .idf/.epw files — it uploads them via presigned URLs and wraps submit → wait → results. Here is the same run two ways: an interactive notebook, then a runnable script."
       >
-        <CodeBlock title="shell" code={curlSubmit} />
+        <div className="space-y-4">
+          <CodeBlock title="python — notebook (Jupyter)" code={pyNotebook} />
+          <CodeBlock title="python — script (run_simulation.py)" code={pyScript} />
+          <CodeBlock title="shell — run the script" code={pyScriptRun} />
+        </div>
       </Section>
 
       <Section
         step="4"
-        title="Poll status & fetch results (curl)"
-        body="Statuses move queued → running → succeeded | failed. Results carry the verdict, Core Metrics, and an artifact URI."
+        title="Sweep parameters as a batch"
+        body="Submit a parametric set of variants as one Batch and track it as a unit. A model reused across variants is content-addressed, so it uploads only once."
       >
-        <CodeBlock title="shell" code={curlStatus} />
+        <CodeBlock title="python — batch sweep" code={pyBatch} />
       </Section>
 
-      <Section
-        step="5"
-        title="Python SDK"
-        body="Point the SDK at local .idf/.epw files — it uploads them for you (presigned URLs, just your API key) and wraps submit / wait / results so you can script sweeps end-to-end."
-      >
-        <div className="space-y-4">
-          <CodeBlock title="python — single run" code={pySubmit} />
-          <CodeBlock title="python — batch sweep" code={pyBatch} />
+      <section className="space-y-3 rounded-xl border border-border bg-panel p-5">
+        <div>
+          <h2 className="text-base font-semibold">Not using Python? Call the REST API directly</h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted">
+            Every endpoint is plain HTTP with a{" "}
+            <code className="font-mono">Bearer</code> token, so any language
+            works. The SDK is just a wrapper over these calls — reach for{" "}
+            <code className="font-mono">curl</code> only when you are not in
+            Python. (Check connectivity any time with{" "}
+            <code className="font-mono">curl {api}/healthz</code>, which needs no
+            auth.)
+          </p>
         </div>
-      </Section>
+        <div className="space-y-4">
+          <CodeBlock title="shell — submit" code={curlSubmit} />
+          <CodeBlock title="shell — poll & fetch results" code={curlStatus} />
+        </div>
+      </section>
 
       <div className="rounded-xl border border-border bg-panel p-5">
         <h3 className="text-sm font-semibold">Core Metrics you get back</h3>
