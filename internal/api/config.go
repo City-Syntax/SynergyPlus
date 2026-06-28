@@ -10,7 +10,12 @@ import (
 type Config struct {
 	Addr        string // APISERVER_ADDR, default :8090
 	DatabaseURL string // DATABASE_URL
-	PerUserCap  int    // SP_PER_USER_CAP (informational here; enforced in claim query)
+
+	// MaxBatchVariants caps how many variants one batch may declare
+	// (SP_MAX_BATCH_VARIANTS, default 10000). Bounds resource use so a single
+	// request can't queue unbounded real EnergyPlus runs (audit #8). Generous
+	// enough for the documented "thousands of variants" sweeps.
+	MaxBatchVariants int
 
 	// AllowedEngineVersions is the set of EnergyPlus versions submissions may
 	// target (SP_ALLOWED_ENGINE_VERSIONS, comma-separated). Empty means accept
@@ -41,7 +46,7 @@ func LoadConfig() Config {
 	return Config{
 		Addr:                  envDefault("APISERVER_ADDR", ":8090"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
-		PerUserCap:            envInt("SP_PER_USER_CAP", 50),
+		MaxBatchVariants:      envInt("SP_MAX_BATCH_VARIANTS", 10000),
 		AllowedEngineVersions: parseVersionSet(os.Getenv("SP_ALLOWED_ENGINE_VERSIONS")),
 
 		S3Endpoint:       os.Getenv("S3_ENDPOINT"),

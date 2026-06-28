@@ -124,11 +124,20 @@ services:
       <<: *db-env
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8090
       BETTER_AUTH_URL: http://localhost:3000
-      BETTER_AUTH_SECRET: dev-secret-change-me-to-a-long-random-string
+      # Local-only session secret (non-placeholder so the startup guard passes —
+      # audit #6). Generate your own with `openssl rand -base64 32`. Acceptable to
+      # commit only because this stack is bound to localhost below; a real deploy
+      # MUST set its own out-of-band.
+      BETTER_AUTH_SECRET: sHe45rHUg/um1ybO9xD11wPe9CTIj0+M2REsdZsEHYI=
+      # Dev magic-link backdoor: explicit opt-in for local use only (audit #2).
+      # NEVER set this in a deploy reachable beyond localhost.
       PORTAL_DEV_LOGIN: "1"
       # Email domains allowed to sign in (comma-separated). Configure per install.
       ALLOWED_EMAIL_DOMAINS: urbanflow.co,nus.edu.sg
-    ports: ["3000:3000"]
+    # Bound to localhost: the dev-login backdoor above is an unauthenticated
+    # account-takeover if the portal is reachable off-box (audit #2). To share on
+    # a trusted network, change to "3000:3000" AND set PORTAL_DEV_LOGIN=0.
+    ports: ["127.0.0.1:3000:3000"]
     depends_on:
       postgres: { condition: service_healthy }
       schema-ready: { condition: service_completed_successfully }   # auth schema migrated first

@@ -54,4 +54,15 @@ RUN command -v energyplus \
  && command -v synergy-runner
 
 ENV SP_WORKSPACE=/tmp/synergy-runner
+
+# Run as non-root (audit #7): the runner executes the EnergyPlus C++ engine on
+# user-supplied .idf/.epw files, so a parser memory-safety bug must not become
+# root-in-container. A numeric UID lets Kubernetes enforce runAsNonRoot. All the
+# privileged build steps above (apt, pip, the self-check) run as root before this
+# switch; the runner only needs to read its installed package and write the
+# workspace it owns below.
+RUN useradd --system --no-log-init --create-home --uid 10001 runner \
+ && mkdir -p "${SP_WORKSPACE}" \
+ && chown runner:runner "${SP_WORKSPACE}"
+USER 10001
 ENTRYPOINT ["synergy-runner"]

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -28,7 +29,7 @@ type createSimulationRequest struct {
 }
 
 type createBatchRequest struct {
-	EngineVersion string `json:"engineVersion"`
+	EngineVersion string      `json:"engineVersion"`
 	Weather       artifactRef `json:"weather"`
 	Variants      []struct {
 		Model artifactRef `json:"model"`
@@ -56,6 +57,14 @@ func (s *Server) handleCreateSimulation(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "unsupported engineVersion")
 		return
 	}
+	if err := s.validateInputRef(req.Model.Ref, "model"); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.validateInputRef(req.Weather.Ref, "weather"); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	priority := normalizePriority(req.Priority)
 
 	hash := queue.ContentHash(req.Model.SHA256, req.Weather.SHA256, req.EngineVersion)
@@ -74,7 +83,7 @@ func (s *Server) handleCreateSimulation(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	id, gotState, err := s.store.InsertSimulation(r.Context(), store.InsertSimulationParams{
+	id, err := s.store.InsertSimulation(r.Context(), store.InsertSimulationParams{
 		UserID:         userID(r.Context()),
 		EngineVersion:  req.EngineVersion,
 		Priority:       priority,
@@ -91,7 +100,7 @@ func (s *Server) handleCreateSimulation(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusInternalServerError, "could not create simulation")
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"id": id, "state": gotState})
+	writeJSON(w, http.StatusCreated, map[string]string{"id": id, "state": state})
 }
 
 // --- GET /v1/simulations/{id} -------------------------------------------------
@@ -105,6 +114,13 @@ func (s *Server) handleGetSimulation(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "lookup failed")
+		return
+	}
+	// Object-level authz (audit #1): the sim must belong to the caller. Return
+	// the same 404 as a missing sim so we don't leak existence (matches
+	// handleListArtifacts).
+	if sim.UserID != userID(r.Context()) {
+		writeError(w, http.StatusNotFound, "simulation not found")
 		return
 	}
 
@@ -135,9 +151,27 @@ func (s *Server) handleCreateBatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "engineVersion, weather.ref and at least one variant are required")
 		return
 	}
+	// Bound batch size (audit #8): an unbounded variant count lets one request
+	// queue unbounded real EnergyPlus runs.
+	if len(req.Variants) > s.cfg.MaxBatchVariants {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("a batch may declare at most %d variants", s.cfg.MaxBatchVariants))
+		return
+	}
 	if !s.cfg.EngineVersionAllowed(req.EngineVersion) {
 		writeError(w, http.StatusBadRequest, "unsupported engineVersion")
 		return
+	}
+	// Validate refs server-side (audit #5): weather + every variant model must be
+	// an s3:// URI into the kind's bucket — never file:// or a cross-bucket path.
+	if err := s.validateInputRef(req.Weather.Ref, "weather"); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	for i := range req.Variants {
+		if err := s.validateInputRef(req.Variants[i].Model.Ref, "model"); err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("variant %d: %s", i, err.Error()))
+			return
+		}
 	}
 	uid := userID(r.Context())
 	priority := normalizePriority(req.Priority)
@@ -210,6 +244,11 @@ func (s *Server) handleGetBatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "lookup failed")
 		return
 	}
+	// Object-level authz (audit #1): the batch must belong to the caller.
+	if b.UserID != userID(r.Context()) {
+		writeError(w, http.StatusNotFound, "batch not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id": b.ID, "state": b.State, "total": b.Total, "succeeded": b.Succeeded, "failed": b.Failed,
 	})
@@ -219,13 +258,23 @@ func (s *Server) handleGetBatch(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleListBatchSimulations(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	limit := queryInt(r, "limit", 50)
-	offset := queryInt(r, "offset", 0)
-	if limit <= 0 || limit > 500 {
-		limit = 50
+	limit, offset := pageParams(r)
+
+	// Object-level authz (audit #1): only the batch's owner may list its
+	// simulations. Preflight on the batch so a non-owner (or unknown id) gets a
+	// 404 with no existence leak, before we read any child rows.
+	b, err := s.store.GetBatch(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "batch not found")
+		return
 	}
-	if offset < 0 {
-		offset = 0
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "lookup failed")
+		return
+	}
+	if b.UserID != userID(r.Context()) {
+		writeError(w, http.StatusNotFound, "batch not found")
+		return
 	}
 
 	sims, total, err := s.store.ListBatchSimulations(r.Context(), id, limit, offset)
@@ -256,6 +305,12 @@ func (s *Server) handleGetResult(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "lookup failed")
+		return
+	}
+	// Object-level authz (audit #1): the sim (hence its result) must belong to
+	// the caller. 404 like a missing sim — no existence leak.
+	if sim.UserID != userID(r.Context()) {
+		writeError(w, http.StatusNotFound, "simulation not found")
 		return
 	}
 	if sim.ContentHash == nil {
@@ -290,6 +345,34 @@ func resultPayload(res *store.Result) map[string]any {
 		uri = *res.ArtifactURI
 	}
 	return map[string]any{"verdict": res.Verdict, "metrics": metrics, "artifactUri": uri}
+}
+
+// validateInputRef enforces that a model/weather ref is an s3:// URI into the
+// bucket expected for its kind (audit #5). Refs are stored verbatim and later
+// fetched by the runner (as root, with broad S3 credentials), so without this an
+// attacker could submit file:///etc/passwd, a bare local path, or a cross-bucket
+// s3://results/<other-hash>/... and turn the runner into an arbitrary-file /
+// cross-tenant read primitive. Accepts both the logical bucket name (models /
+// weather, used in stored refs) and the configured real bucket (what the upload
+// endpoint mints), so every legitimate ref still passes.
+func (s *Server) validateInputRef(ref, kind string) error {
+	bucket, key := parseS3URI(ref)
+	if bucket == "" || key == "" {
+		return fmt.Errorf("%s.ref must be an s3:// URI", kind)
+	}
+	var logical, real string
+	switch kind {
+	case "model":
+		logical, real = "models", s.cfg.BucketModels
+	case "weather":
+		logical, real = "weather", s.cfg.BucketWeather
+	default:
+		return fmt.Errorf("unknown ref kind %q", kind)
+	}
+	if bucket != logical && bucket != real {
+		return fmt.Errorf("%s.ref bucket %q is not allowed", kind, bucket)
+	}
+	return nil
 }
 
 // normalizePriority clamps an optional priority to {0,1,2}, defaulting to 1
@@ -332,4 +415,19 @@ func queryInt(r *http.Request, key string, def int) int {
 		return def
 	}
 	return n
+}
+
+// pageParams extracts and clamps pagination parameters from a request.
+// limit defaults to 50 and is clamped to [1, 500]; offset defaults to 0 and
+// is clamped to ≥0.
+func pageParams(r *http.Request) (limit, offset int) {
+	limit = queryInt(r, "limit", 50)
+	offset = queryInt(r, "offset", 0)
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
 }
