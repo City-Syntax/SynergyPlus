@@ -9,10 +9,10 @@ export default async function KeysPage() {
   return (
     <div className="space-y-7">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">API Keys</h1>
-        <p className="mt-1.5 text-sm text-muted">
+        <h1 className="header-xlarge">API Keys</h1>
+        <p className="mt-1.5 text-body-large text-text-secondary">
           Keys authenticate the SDK and CLI as{" "}
-          <span className="font-medium text-fg">{user.email}</span>. Only a
+          <span className="font-medium text-text">{user.email}</span>. Only a
           hash is stored — the raw key is shown once at creation.
         </p>
       </header>

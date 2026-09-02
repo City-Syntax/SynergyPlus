@@ -3,8 +3,9 @@ export function Logo({ className = "" }: { className?: string }) {
     <div className={`flex items-center gap-2 ${className}`}>
       {/* Synergy Orbit — the EnergyPlus swoosh closed into a full orbit, worker
           nodes converging on a central blue "+" hub. Canonical mark; see
-          assets/logo/synergyplus-icon.svg. */}
-      <svg className="h-7 w-7" viewBox="0 0 256 256" fill="none" role="img" aria-label="SynergyPlus logo">
+          assets/logo/synergyplus-icon.svg. Brand mark colours are fixed and do
+          not follow the UI theme. */}
+      <svg className="h-6 w-6" viewBox="0 0 256 256" fill="none" role="img" aria-label="SynergyPlus logo">
         <ellipse cx="128" cy="128" rx="98" ry="58" transform="rotate(-28 128 128)" stroke="#009D57" strokeWidth="9" strokeLinecap="round" />
         <g fill="#0E9E8E">
           <circle cx="44" cy="92" r="15" />
@@ -22,8 +23,8 @@ export function Logo({ className = "" }: { className?: string }) {
           <rect x="104" y="121" width="48" height="14" rx="4" />
         </g>
       </svg>
-      <span className="text-[15px] font-semibold tracking-tight">
-        Synergy<span className="text-brand">Plus</span>
+      <span className="header-normal">
+        Synergy<span className="text-[#0082C4]">Plus</span>
       </span>
     </div>
   );

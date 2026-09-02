@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
-import { ThemeToggle } from "./ThemeToggle";
 import { signOut } from "@/lib/auth-client";
+import { BUTTON_SECONDARY } from "@/components/ui";
 import { useRouter } from "next/navigation";
 
 const NAV = [
@@ -13,6 +13,9 @@ const NAV = [
   { href: "/keys", label: "API Keys", icon: KeyIcon },
   { href: "/getting-started", label: "Getting Started", icon: BookIcon },
 ];
+
+const ICON_BUTTON =
+  "grid place-items-center rounded-control text-icon-secondary transition-colors duration-[120ms] cursor-pointer hover:bg-fill-transparent-hover hover:text-icon active:bg-fill-transparent-active outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-border-focus focus-visible:outline-offset-1";
 
 export function Sidebar({ email, name }: { email: string; name: string }) {
   const pathname = usePathname();
@@ -43,14 +46,14 @@ export function Sidebar({ email, name }: { email: string; name: string }) {
   return (
     <>
       {/* Mobile top bar with hamburger — hidden on md+ where the sidebar is always visible. */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-panel px-4 md:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 md:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open navigation menu"
           aria-expanded={open}
           aria-controls="portal-sidebar"
-          className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-fg"
+          className={`h-8 w-8 ${ICON_BUTTON}`}
         >
           <MenuIcon />
         </button>
@@ -62,13 +65,13 @@ export function Sidebar({ email, name }: { email: string; name: string }) {
         <div
           onClick={() => setOpen(false)}
           aria-hidden
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-bg-overlay md:hidden"
         />
       )}
 
       <aside
         id="portal-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-border bg-panel px-3 py-4 transition-transform duration-200 ease-out md:sticky md:top-0 md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-border bg-surface px-3 py-4 transition-transform duration-200 ease-out md:sticky md:top-0 md:z-auto md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -78,7 +81,7 @@ export function Sidebar({ email, name }: { email: string; name: string }) {
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Close navigation menu"
-            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-fg md:hidden"
+            className={`h-8 w-8 md:hidden ${ICON_BUTTON}`}
           >
             <CloseIcon />
           </button>
@@ -93,13 +96,15 @@ export function Sidebar({ email, name }: { email: string; name: string }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                className={`flex items-center gap-2.5 rounded-control p-2 text-body-medium transition-colors duration-[120ms] outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-border-focus focus-visible:outline-offset-1 ${
                   active
-                    ? "bg-brand/12 text-brand"
-                    : "text-muted hover:bg-panel-2 hover:text-fg"
+                    ? "bg-surface-selected font-semibold text-text"
+                    : "font-medium text-text-secondary hover:bg-fill-hover hover:text-text active:bg-fill-active"
                 }`}
               >
-                <Icon active={active} />
+                <span className={active ? "text-icon" : "text-icon-secondary"}>
+                  <Icon active={active} />
+                </span>
                 {item.label}
               </Link>
             );
@@ -108,19 +113,22 @@ export function Sidebar({ email, name }: { email: string; name: string }) {
 
         <div className="space-y-3 border-t border-border pt-3">
           <div className="flex items-center gap-2.5 px-1">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-semibold uppercase text-brand">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-avatar-fill text-body-medium font-semibold uppercase text-avatar-text">
               {name.slice(0, 2)}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium text-fg">{name}</div>
-              <div className="truncate text-[11px] text-muted">{email}</div>
+              <div className="truncate text-body-medium font-medium text-text">
+                {name}
+              </div>
+              <div className="truncate text-body-small text-text-secondary">
+                {email}
+              </div>
             </div>
-            <ThemeToggle />
           </div>
           <button
             type="button"
             onClick={handleSignOut}
-            className="w-full rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted transition hover:border-red-500/40 hover:text-red-400"
+            className={`w-full text-text-secondary not-disabled:hover:text-text-critical ${BUTTON_SECONDARY}`}
           >
             Sign out
           </button>

@@ -109,17 +109,17 @@ curl ${api}/v1/results/<id> \\
   return (
     <div className="space-y-9">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Getting Started</h1>
-        <p className="mt-1.5 text-sm text-muted">
+        <h1 className="header-xlarge">Getting Started</h1>
+        <p className="mt-1.5 text-body-large text-text-secondary">
           Run EnergyPlus simulations from Python in a few lines. The{" "}
-          <code className="rounded bg-panel-2 px-1 py-0.5 font-mono text-xs">
+          <code className="rounded-small bg-surface-tertiary px-1 py-0.5 font-mono text-body-medium text-text">
             synergyplus
           </code>{" "}
           SDK uploads your local{" "}
           <code className="font-mono">.idf</code>/<code className="font-mono">.epw</code>{" "}
           files and pulls results back with just an API key — no S3 credentials.
           Not in Python? The same API is one{" "}
-          <code className="rounded bg-panel-2 px-1 py-0.5 font-mono text-xs">
+          <code className="rounded-small bg-surface-tertiary px-1 py-0.5 font-mono text-body-medium text-text">
             curl
           </code>{" "}
           away.
@@ -162,10 +162,10 @@ curl ${api}/v1/results/<id> \\
         <CodeBlock title="python — batch sweep" code={pyBatch} />
       </Section>
 
-      <section className="space-y-3 rounded-xl border border-border bg-panel p-5">
+      <section className="space-y-3 rounded-card bg-surface p-5 inset-ring inset-ring-border">
         <div>
-          <h2 className="text-base font-semibold">Not using Python? Call the REST API directly</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted">
+          <h2 className="header-normal">Not using Python? Call the REST API directly</h2>
+          <p className="mt-1 text-body-normal text-text-secondary">
             Every endpoint is plain HTTP with a{" "}
             <code className="font-mono">Bearer</code> token, so any language
             works. The SDK is just a wrapper over these calls — reach for{" "}
@@ -181,9 +181,9 @@ curl ${api}/v1/results/<id> \\
         </div>
       </section>
 
-      <div className="rounded-xl border border-border bg-panel p-5">
-        <h3 className="text-sm font-semibold">Core Metrics you get back</h3>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted">
+      <div className="rounded-card bg-surface p-5 inset-ring inset-ring-border">
+        <h3 className="header-medium">Core Metrics you get back</h3>
+        <p className="mt-1.5 text-body-medium text-text-secondary">
           Every result includes{" "}
           <code className="font-mono">site_eui</code>,{" "}
           <code className="font-mono">source_eui</code>,{" "}
@@ -213,12 +213,12 @@ function Section({
   return (
     <section className="space-y-3">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-semibold text-brand">
+        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-fill-secondary text-body-medium font-semibold text-text">
           {step}
         </span>
         <div>
-          <h2 className="text-base font-semibold">{title}</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted">{body}</p>
+          <h2 className="header-normal">{title}</h2>
+          <p className="mt-1 text-body-normal text-text-secondary">{body}</p>
         </div>
       </div>
       <div className="pl-9">{children}</div>
