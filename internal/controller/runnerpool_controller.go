@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -165,18 +166,29 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, pool *sy
 		return err
 	}
 
-	var existing appsv1.Deployment
-	err = r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: desired.Namespace}, &existing)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return err
+	// Read-modify-write, retried on conflict. KEDA writes .spec.replicas on
+	// this same Deployment continuously while a queue is deep, so a reconcile
+	// carrying a real change loses the optimistic-concurrency race - and
+	// without a retry it loses it again on every requeue, so the change never
+	// lands and the controller spins on "the object has been modified".
+	// Measured on the lab cluster 2026-09-09: the runner tolerations could
+	// not be written at 80 running runners until this existed. A reconcile
+	// with nothing to change is a no-op write the API server drops, which is
+	// why the loop only appears when something real is being written.
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var existing appsv1.Deployment
+		err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: desired.Namespace}, &existing)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return err
+			}
+			return r.Create(ctx, desired)
 		}
-		return r.Create(ctx, desired)
-	}
-	existing.Labels = desired.Labels
-	existing.Spec.Selector = desired.Spec.Selector
-	existing.Spec.Template = desired.Spec.Template
-	return r.Update(ctx, &existing)
+		existing.Labels = desired.Labels
+		existing.Spec.Selector = desired.Spec.Selector
+		existing.Spec.Template = desired.Spec.Template
+		return r.Update(ctx, &existing)
+	})
 }
 
 func (r *RunnerPoolReconciler) reconcileScaledObject(ctx context.Context, pool *synergyv1.RunnerPool) error {
