@@ -5,7 +5,9 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
@@ -57,6 +59,35 @@ func runnerEnv() []corev1.EnvVar {
 // exist in the cluster would never schedule, which would break local installs.
 func runnerServiceAccount() string {
 	return os.Getenv("SP_RUNNER_SERVICE_ACCOUNT")
+}
+
+// runnerTolerations returns the tolerations Runner pods carry, read from
+// SP_RUNNER_TOLERATIONS as a JSON array of core/v1 Tolerations. On EKS this is
+// the taint on the spot NodePool, which is where a retryable runner belongs and
+// where nothing could previously schedule. Unset means none, which is the
+// previous behaviour and the right one locally. A malformed value is fatal
+// rather than ignored: starting with an empty list would silently put the whole
+// pool back on on-demand capacity, which is the bug this exists to fix.
+func runnerTolerations() []corev1.Toleration {
+	out, err := parseTolerations(os.Getenv("SP_RUNNER_TOLERATIONS"))
+	if err != nil {
+		setupLog.Error(err, "SP_RUNNER_TOLERATIONS is not a JSON array of tolerations")
+		os.Exit(1)
+	}
+	return out
+}
+
+// parseTolerations is runnerTolerations without the exit, so the parse is
+// testable on its own.
+func parseTolerations(raw string) ([]corev1.Toleration, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var out []corev1.Toleration
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil, fmt.Errorf("parse SP_RUNNER_TOLERATIONS %q: %w", raw, err)
+	}
+	return out, nil
 }
 
 func main() {

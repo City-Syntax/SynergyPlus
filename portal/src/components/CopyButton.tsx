@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BUTTON_SECONDARY } from "@/components/ui";
 
 export function CopyButton({
   value,
@@ -33,7 +34,7 @@ export function CopyButton({
     <button
       type="button"
       onClick={copy}
-      className={`inline-flex items-center gap-1.5 rounded-md border border-border bg-panel-2 px-2.5 py-1.5 text-xs font-medium text-fg transition hover:border-brand/60 hover:text-brand ${className}`}
+      className={`text-text ${BUTTON_SECONDARY} ${className}`}
     >
       {copied ? (
         <>

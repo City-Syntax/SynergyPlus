@@ -67,7 +67,7 @@ export async function sendMagicLinkEmail(opts: {
       `<p>Use the button below to sign in to SynergyPlus. It expires in 10 minutes and can be used once.</p>`,
       `<p><a href="${url}">Sign in to SynergyPlus</a></p>`,
       `<p>If the button doesn't work, paste this URL into your browser:<br><span>${url}</span></p>`,
-      `<p style="color:#666">If you didn't request this, you can safely ignore this email.</p>`,
+      `<p style="color:#616161">If you didn't request this, you can safely ignore this email.</p>`,
     ].join(""),
   });
 }

@@ -1,64 +1,476 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=JetBrains+Mono:wght@500&display=swap');
 
-:root {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+@import 'tailwindcss';
 
-  /* Light theme */
-  --bg: 250 250 251;
-  --panel: 255 255 255;
-  --panel-2: 246 247 249;
-  --border: 226 228 233;
-  --fg: 17 19 24;
-  --muted: 100 105 116;
-  --brand: 0 130 196; /* #0082C4 — SynergyPlus blue (logo "+" hub) */
-  --brand-fg: 255 255 255;
-  --accent-teal: 14 158 142; /* #0E9E8E — logo synergy nodes */
-  --accent-green: 0 157 87; /* #009D57 — logo orbit */
+/*
+	Urbanflow design system, vendored.
+
+	Source of truth: urbanflow-monorepo/libs/urbanflow-components/src/tailwind.css
+	(itself generated from the Platform Figma library's Variables via the
+	"Urbanflow Components" design-system project). Re-sync by copying the
+	@theme block and the layers below verbatim; portal-specific additions live
+	only in the clearly marked block at the end of this file.
+
+	Two layers, and the distinction matters:
+
+	  1. PRIMITIVES -- the raw ramps (gray-1..16, red-*, green-*, ...), mirroring
+	     the design's Figma variables one-for-one. Regenerate when Figma moves.
+	     Prefer not to use these directly in components.
+	  2. SEMANTICS  -- what a colour is *for* (surface / fill / text / border /
+	     icon). Components use these. They encode interaction state, which is
+	     what keeps hover and active consistent across the library.
+ */
+
+@theme {
+  /* Reset all color variables */
+  --color-*: initial;
+
+  /* ---------------------------------------------------------------------
+     LAYER 1 -- PRIMITIVES
+     --------------------------------------------------------------------- */
+
+  /** Gray -- the neutral ramp. **/
+  --color-gray-1: rgb(255, 255, 255);
+  --color-gray-2: rgb(253, 253, 253);
+  --color-gray-3: rgb(250, 250, 250);
+  --color-gray-4: rgb(247, 247, 247);
+  --color-gray-5: rgb(243, 243, 243);
+  --color-gray-6: rgb(241, 241, 241);
+  --color-gray-7: rgb(235, 235, 235);
+  --color-gray-8: rgb(227, 227, 227);
+  --color-gray-9: rgb(212, 212, 212);
+  --color-gray-10: rgb(204, 204, 204);
+  --color-gray-11: rgb(181, 181, 181);
+  --color-gray-12: rgb(138, 138, 138);
+  --color-gray-13: rgb(97, 97, 97);
+  --color-gray-14: rgb(74, 74, 74);
+  --color-gray-15: rgb(48, 48, 48);
+  --color-gray-16: rgb(26, 26, 26);
+
+  /** Black alpha -- fills that must not occlude what sits behind them.
+      Every transparent/ghost control state is built from these. **/
+  --color-black-alpha-5: rgba(0, 0, 0, 0.05);
+  --color-black-alpha-6: rgba(0, 0, 0, 0.06);
+  --color-black-alpha-7: rgba(0, 0, 0, 0.08);
+  --color-black-alpha-9: rgba(0, 0, 0, 0.17);
+
+  /** Red -- critical **/
+  --color-red-1: rgb(255, 251, 251);
+  --color-red-4: rgb(254, 233, 232);
+  --color-red-5: rgb(254, 226, 225);
+  --color-red-6: rgb(254, 218, 217);
+  --color-red-11: rgb(239, 77, 47);
+  --color-red-12: rgb(229, 28, 0);
+  --color-red-13: rgb(181, 38, 11);
+  --color-red-14: rgb(142, 31, 11);
+  --color-red-15: rgb(95, 21, 7);
+  --color-red-16: rgb(47, 10, 4);
+
+  /** Green -- success **/
+  --color-green-1: rgb(248, 255, 251);
+  --color-green-3: rgb(205, 254, 225);
+  --color-green-4: rgb(180, 254, 210);
+  --color-green-5: rgb(146, 254, 194);
+  --color-green-7: rgb(56, 250, 163);
+  --color-green-12: rgb(41, 132, 90);
+  --color-green-13: rgb(19, 111, 69);
+  --color-green-14: rgb(12, 81, 50);
+
+  /** Azure -- info surfaces and info icons **/
+  --color-azure-3: rgb(234, 244, 255);
+  --color-azure-4: rgb(224, 240, 255);
+  --color-azure-7: rgb(192, 225, 255);
+  --color-azure-8: rgb(168, 216, 255);
+  --color-azure-9: rgb(145, 208, 255);
+  --color-azure-11: rgb(0, 148, 213);
+  --color-azure-14: rgb(0, 82, 124);
+  --color-azure-16: rgb(0, 33, 51);
+
+  /** Blue -- links, emphasis and focus. Deliberately distinct from azure:
+      azure is the info *surface* family, blue is the *interactive* family. **/
+  --color-blue-13: rgb(0, 91, 211);
+  --color-blue-14: rgb(0, 66, 153);
+  --color-blue-15: rgb(0, 46, 106);
+
+  /** Orange -- warning **/
+  --color-orange-3: rgb(255, 241, 227);
+  --color-orange-4: rgb(255, 235, 213);
+  --color-orange-5: rgb(255, 228, 198);
+  --color-orange-7: rgb(255, 214, 164);
+  --color-orange-9: rgb(255, 184, 0);
+  --color-orange-11: rgb(178, 132, 0);
+  --color-orange-14: rgb(94, 66, 0);
+  --color-orange-16: rgb(37, 26, 0);
+
+  /** Yellow -- caution **/
+  --color-yellow-4: rgb(255, 239, 157);
+  --color-yellow-6: rgb(255, 230, 0);
+  --color-yellow-11: rgb(153, 138, 0);
+  --color-yellow-14: rgb(79, 71, 0);
+  --color-yellow-15: rgb(51, 46, 0);
+
+  /** Purple -- magic (AI-generated / AI-authored content) **/
+  --color-purple-1: rgb(253, 253, 255);
+  --color-purple-2: rgb(248, 247, 255);
+  --color-purple-3: rgb(243, 241, 255);
+  --color-purple-4: rgb(239, 236, 255);
+  --color-purple-11: rgb(148, 116, 255);
+  --color-purple-12: rgb(128, 81, 255);
+  --color-purple-13: rgb(113, 38, 255);
+  --color-purple-14: rgb(87, 0, 209);
+
+  /** Accent hues -- used only by Avatar's deterministic colour assignment. **/
+  --color-magenta-7: rgb(251, 207, 251);
+  --color-magenta-14: rgb(121, 26, 121);
+  --color-cyan-7: rgb(146, 237, 222);
+  --color-cyan-14: rgb(9, 83, 70);
+  --color-rose-7: rgb(254, 209, 221);
+  --color-rose-14: rgb(141, 4, 72);
+
+  /** Misc -- the categorical data-series palette. Not part of the UI ramp:
+      these are for charts and zone/category colour coding. **/
+  --color-misc-red: rgb(255, 56, 60);
+  --color-misc-orange: rgb(255, 141, 40);
+  --color-misc-yellow: rgb(255, 204, 0);
+  --color-misc-green: rgb(52, 199, 89);
+  --color-misc-cyan: rgb(0, 192, 232);
+  --color-misc-indigo: rgb(203, 48, 224);
+  --color-misc-pink: rgb(255, 45, 85);
+  --color-misc-brown: rgb(172, 127, 94);
+
+  /* ---------------------------------------------------------------------
+     LAYER 2 -- SEMANTICS
+
+     surface vs fill:
+       surface-* = background of a *container* (card, panel, row, menu)
+       fill-*    = background of a *control*   (button, input, chip, toggle)
+     Different ramps, different hover steps. Do not mix them.
+     --------------------------------------------------------------------- */
+
+  /** Surfaces -- containers **/
+  --color-surface: var(--color-gray-1);
+  --color-surface-hover: var(--color-gray-4);
+  --color-surface-active: var(--color-gray-5);
+  --color-surface-selected: var(--color-gray-6);
+  --color-surface-secondary: var(--color-gray-4);
+  --color-surface-secondary-hover: var(--color-gray-6);
+  --color-surface-secondary-active: var(--color-gray-7);
+  --color-surface-secondary-selected: var(--color-gray-7);
+  --color-surface-tertiary: var(--color-gray-5);
+  --color-surface-brand-selected: var(--color-gray-6);
+  --color-surface-critical: var(--color-red-4);
+  --color-surface-critical-hover: var(--color-red-5);
+  --color-surface-critical-active: var(--color-red-6);
+  --color-surface-success: var(--color-green-3);
+  --color-surface-success-hover: var(--color-green-4);
+  --color-surface-success-active: var(--color-green-5);
+  --color-surface-warning: var(--color-orange-3);
+  --color-surface-warning-hover: var(--color-orange-4);
+  --color-surface-warning-active: var(--color-orange-5);
+  --color-surface-info: var(--color-azure-3);
+  --color-surface-magic: var(--color-purple-2);
+  --color-surface-magic-hover: var(--color-purple-3);
+
+  /** Fills -- controls **/
+  --color-fill: var(--color-gray-1);
+  --color-fill-hover: var(--color-gray-3);
+  --color-fill-active: var(--color-gray-4);
+  --color-fill-selected: var(--color-gray-10);
+  --color-fill-secondary: var(--color-gray-6);
+  --color-fill-disabled: var(--color-black-alpha-5);
+  --color-fill-brand: var(--color-gray-15);
+  --color-fill-brand-hover: var(--color-gray-16);
+  --color-fill-brand-active: var(--color-gray-16);
+  --color-fill-brand-selected: var(--color-gray-15);
+  --color-fill-brand-disabled: var(--color-black-alpha-9);
+  --color-fill-tertiary: var(--color-gray-8);
+  --color-fill-tertiary-hover: var(--color-gray-9);
+  --color-fill-tertiary-active: var(--color-gray-10);
+  /* Transparent fills stay translucent so ghost controls read correctly over
+     coloured surfaces. Never substitute an opaque gray for these. */
+  --color-fill-transparent-hover: var(--color-black-alpha-5);
+  --color-fill-transparent-active: var(--color-black-alpha-7);
+  --color-fill-transparent-secondary: var(--color-black-alpha-6);
+  --color-fill-transparent-selected: var(--color-black-alpha-7);
+  --color-fill-critical: var(--color-red-12);
+  --color-fill-critical-hover: var(--color-red-13);
+  --color-fill-critical-active: var(--color-red-14);
+  --color-fill-critical-selected: var(--color-red-14);
+  --color-fill-critical-secondary: var(--color-red-6);
+  --color-fill-success: var(--color-green-12);
+  --color-fill-success-hover: var(--color-green-13);
+  --color-fill-success-active: var(--color-green-14);
+  --color-fill-success-secondary: var(--color-green-3);
+  --color-fill-warning: var(--color-orange-9);
+  --color-fill-warning-secondary: var(--color-orange-7);
+  --color-fill-caution: var(--color-yellow-6);
+  --color-fill-caution-secondary: var(--color-yellow-4);
+  --color-fill-info: var(--color-azure-9);
+  --color-fill-info-secondary: var(--color-azure-4);
+  --color-fill-magic: var(--color-purple-12);
+
+  /** Text **/
+  --color-text: var(--color-gray-15);
+  --color-text-secondary: var(--color-gray-13);
+  --color-text-disabled: var(--color-gray-11);
+  --color-text-inverse: var(--color-gray-8);
+  --color-text-brand: var(--color-gray-14);
+  --color-text-link: var(--color-blue-13);
+  --color-text-link-hover: var(--color-blue-14);
+  --color-text-link-active: var(--color-blue-15);
+  --color-text-emphasis: var(--color-blue-13);
+  --color-text-emphasis-hover: var(--color-blue-14);
+  --color-text-emphasis-active: var(--color-blue-15);
+  --color-text-critical: var(--color-red-14);
+  --color-text-critical-hover: var(--color-red-15);
+  --color-text-critical-active: var(--color-red-16);
+  --color-text-success: var(--color-green-14);
+  --color-text-warning: var(--color-orange-14);
+  --color-text-caution: var(--color-yellow-14);
+  --color-text-info: var(--color-azure-14);
+  --color-text-magic: var(--color-purple-14);
+  --color-text-magic-secondary: var(--color-purple-13);
+
+  /** Text sitting on a filled background. Pair each with its matching fill-*.
+      `-on-fill` is never a free choice: it is determined by the fill under it. **/
+  --color-text-brand-on-fill: var(--color-gray-1);
+  --color-text-brand-on-fill-hover: var(--color-gray-8);
+  --color-text-brand-on-fill-active: var(--color-gray-10);
+  --color-text-brand-on-fill-disabled: var(--color-gray-1);
+  --color-text-critical-on-fill: var(--color-red-1);
+  --color-text-success-on-fill: var(--color-green-1);
+  --color-text-warning-on-fill: var(--color-orange-16);
+  --color-text-caution-on-fill: var(--color-yellow-15);
+  --color-text-info-on-fill: var(--color-azure-16);
+  --color-text-magic-on-fill: var(--color-purple-1);
+
+  /** Borders **/
+  --color-border: var(--color-gray-8);
+  --color-border-hover: var(--color-gray-10);
+  --color-border-secondary: var(--color-gray-7);
+  --color-border-focus: var(--color-blue-13);
+  --color-border-info: var(--color-azure-8);
+  --color-border-critical-secondary: var(--color-red-14);
+  --color-border-magic-secondary: var(--color-purple-11);
+  --color-border-magic-secondary-hover: var(--color-purple-12);
+
+  /** Icons -- a distinct ramp from text: icons sit one step lighter, because
+      glyph strokes read heavier than type at the same value. **/
+  --color-icon: var(--color-gray-14);
+  --color-icon-hover: var(--color-gray-15);
+  --color-icon-active: var(--color-gray-16);
+  --color-icon-secondary: var(--color-gray-12);
+  --color-icon-disabled: var(--color-gray-10);
+  --color-icon-critical: var(--color-red-11);
+  --color-icon-success: var(--color-green-12);
+  --color-icon-warning: var(--color-orange-11);
+  --color-icon-caution: var(--color-yellow-11);
+  --color-icon-info: var(--color-azure-11);
+  --color-icon-magic: var(--color-purple-12);
+
+  /** Inputs -- text fields carry their own ramp, deliberately darker-bordered
+      than other controls so that fields read as editable. **/
+  --color-input-surface: var(--color-gray-2);
+  --color-input-surface-hover: var(--color-gray-3);
+  --color-input-surface-active: var(--color-gray-4);
+  --color-input-border: var(--color-gray-12);
+  --color-input-border-hover: var(--color-gray-13);
+  --color-input-border-active: var(--color-gray-16);
+
+  /** Page-level backgrounds and overlays **/
+  --color-bg: var(--color-gray-6);
+  --color-bg-inverse: var(--color-gray-16);
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+
+  /** Avatar -- deterministic accent assignment **/
+  --color-avatar-fill: var(--color-gray-11);
+  --color-avatar-text: var(--color-gray-1);
+  --color-avatar-one-fill: var(--color-magenta-7);
+  --color-avatar-one-text: var(--color-magenta-14);
+  --color-avatar-two-fill: var(--color-green-7);
+  --color-avatar-two-text: var(--color-green-14);
+  --color-avatar-three-fill: var(--color-cyan-7);
+  --color-avatar-three-text: var(--color-cyan-14);
+  --color-avatar-four-fill: var(--color-azure-7);
+  --color-avatar-four-text: var(--color-azure-14);
+  --color-avatar-five-fill: var(--color-rose-7);
+  --color-avatar-five-text: var(--color-rose-14);
+
+  /* ---------------------------------------------------------------------
+     TYPOGRAPHY
+
+     Two ramps. Heading sizes carry line-height AND letter-spacing. Body
+     sizes carry line-height only -- weight stays with explicit font-*
+     utilities.
+     --------------------------------------------------------------------- */
+
+  /* Tailwind derives --default-font-family from this, so it is what preflight
+     puts on <html> - the single place the app-wide font is chosen. */
+  --font-sans:
+    'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  /* Numeric values only -- measurements, metrics, anything tabular. */
+  --font-mono:
+    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /** Heading ramp **/
+  --text-heading-xxxlarge: 36px;
+  --text-heading-xxxlarge--line-height: 48px;
+  --text-heading-xxxlarge--letter-spacing: -0.54px;
+  --text-heading-xxlarge: 30px;
+  --text-heading-xxlarge--line-height: 36px;
+  --text-heading-xxlarge--letter-spacing: -0.3px;
+  --text-heading-xlarge: 24px;
+  --text-heading-xlarge--line-height: 32px;
+  --text-heading-xlarge--letter-spacing: -0.24px;
+  --text-heading-large: 20px;
+  --text-heading-large--line-height: 24px;
+  --text-heading-large--letter-spacing: -0.2px;
+  --text-heading-normal: 16px;
+  --text-heading-normal--line-height: 20px;
+  --text-heading-normal--letter-spacing: -0.16px;
+  --text-heading-medium: 14px;
+  --text-heading-medium--line-height: 20px;
+  --text-heading-small: 13px;
+  --text-heading-small--line-height: 16px;
+  --text-heading-subtitle: 12px;
+  --text-heading-subtitle--line-height: 16px;
+
+  /** Body ramp **/
+  --text-body-large: 14px;
+  --text-body-large--line-height: 20px;
+  --text-body-normal: 13px;
+  --text-body-normal--line-height: 20px;
+  --text-body-medium: 12px;
+  --text-body-medium--line-height: 16px;
+  --text-body-small: 10px;
+  --text-body-small--line-height: 14px;
+
+  /** Mono **/
+  --text-mono: 14px;
+  --text-mono--line-height: 20px;
+
+  /** Font weights **/
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ---------------------------------------------------------------------
+     ELEVATION
+     Three levels. Note `card` is a KEYLINE, not a drop shadow: cards are
+     separated by a hairline, not by lift. Only popover and modal cast.
+     --------------------------------------------------------------------- */
+  --shadow-card: inset 0 0 0 1px var(--color-border);
+  --shadow-popover:
+    0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px var(--color-border);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
+  --shadow-tooltip: 0 4px 6px -2px rgba(26, 26, 26, 0.2);
+  --shadow-toast: 0 4px 12px rgba(26, 26, 26, 0.24);
+
+  /* ---------------------------------------------------------------------
+     RADII -- 4 / 8 / 12 / 16 / full.
+     Named by role: controls 8, cards and popovers 12, modals and sections 16.
+     --------------------------------------------------------------------- */
+  --radius-small: 4px;
+  --radius-nested: 6px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-popover: 12px;
+  --radius-modal: 16px;
+  --radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------
+     CONTROL HEIGHTS -- the three sizes every control snaps to.
+     --------------------------------------------------------------------- */
+  --spacing-control-micro: 24px;
+  --spacing-control-medium: 28px;
+  --spacing-control-large: 32px;
+
+  /* Deliberately trimmed from upstream: --animate-toast-content-in and its
+     keyframes, the sonner toast positioning rule, and the .border-radius-* /
+     .with-scrollbar helpers -- the portal has no toasts and nothing uses them.
+     Restore alongside the Toast component if one is ever ported. */
 }
 
-.dark {
-  /* Dark theme — the default look */
-  --bg: 9 9 12;
-  --panel: 17 18 23;
-  --panel-2: 24 25 32;
-  --border: 38 40 49;
-  --fg: 237 238 242;
-  --muted: 148 152 164;
-  --brand: 59 169 221; /* #3BA9DD — logo blue, lightened for dark bg */
-  --brand-fg: 15 16 22;
-  --accent-teal: 45 194 168; /* #2DC2A8 — lightened for dark bg */
-  --accent-green: 34 199 122; /* #22C77A — lightened for dark bg */
+@layer components {
+  /*
+    Heading weight is NOT uniform: the three display sizes are bold (700),
+    everything from `large` down is semibold (600).
+  */
+  .header-xxxlarge {
+    @apply font-bold text-heading-xxxlarge text-text;
+  }
+
+  .header-xxlarge {
+    @apply font-bold text-heading-xxlarge text-text;
+  }
+
+  .header-xlarge {
+    @apply font-bold text-heading-xlarge text-text;
+  }
+
+  .header-large {
+    @apply font-semibold text-heading-large text-text;
+  }
+
+  .header-normal {
+    @apply font-semibold text-heading-normal text-text;
+  }
+
+  .header-medium {
+    @apply font-semibold text-heading-medium text-text;
+  }
+
+  .header-small {
+    @apply font-semibold text-heading-small text-text;
+  }
+
+  .header-subtitle {
+    @apply font-semibold text-heading-subtitle text-text;
+  }
+
+  /* Numeric values. Tabular figures so columns of numbers align. */
+  .value-mono {
+    @apply font-mono text-mono;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-html {
-  color-scheme: dark;
+@layer base {
+  /* Apply font smoothing for better text rendering */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    color: var(--color-text);
+  }
+
+  /* Plus Jakarta Sans stylistic sets, matching the design system. */
+  * {
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentcolor);
+  }
 }
 
-body {
-  background: rgb(var(--bg));
-  color: rgb(var(--fg));
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+/* -------------------------------------------------------------------------
+   Portal-specific base. Everything above is vendored from Urbanflow;
+   everything below is SynergyPlus-portal-only.
+   ------------------------------------------------------------------------- */
+@layer base {
+  html {
+    color-scheme: light;
+  }
 
-* {
-  border-color: rgb(var(--border));
-}
-
-::selection {
-  background: rgb(var(--brand) / 0.3);
-}
-
-/* Subtle scrollbar in dark mode */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: rgb(var(--border));
-  border-radius: 8px;
+  body {
+    background: var(--color-bg);
+  }
 }
