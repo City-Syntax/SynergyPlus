@@ -44,6 +44,14 @@ type RunnerPoolReconciler struct {
 	// credentials". Empty leaves it unset (local/OrbStack, where creds come from
 	// RunnerEnv static keys instead).
 	RunnerServiceAccount string
+
+	// RunnerTolerations lets runner pods land on tainted capacity. A runner is
+	// retryable by construction (lease + reaper, ADR-0003), so it is the one
+	// workload here that belongs on spot; the deployment IaC taints a spot
+	// NodePool for exactly that and nothing tolerated the taint, so every
+	// runner ran on on-demand nodes at roughly three times the price. Empty
+	// keeps the previous behaviour, which is what a local install wants.
+	RunnerTolerations []corev1.Toleration
 }
 
 // +kubebuilder:rbac:groups=synergyplus.io,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
@@ -130,6 +138,10 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, pool *sy
 					// boto3 assumes its S3 role via the OIDC provider. Empty
 					// (local) leaves the default SA and relies on RunnerEnv keys.
 					ServiceAccountName: r.RunnerServiceAccount,
+					// Runners only. The apiserver, the operator and Postgres
+					// stay on on-demand capacity, where an interruption would
+					// cost a whole batch rather than one retryable run.
+					Tolerations: r.RunnerTolerations,
 					Containers: []corev1.Container{{
 						Name:  "runner",
 						Image: runnerImage(pool),
