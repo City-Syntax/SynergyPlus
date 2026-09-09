@@ -15,6 +15,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -90,6 +91,22 @@ func parseTolerations(raw string) ([]corev1.Toleration, error) {
 	return out, nil
 }
 
+// newRunnerPoolReconciler builds the reconciler from the environment.
+//
+// Separate from main so a test can assert the wiring itself. Every field here
+// is read from an env var, and each one that goes missing fails silently: the
+// tolerations shipped in #33 were parsed and tested and never passed to the
+// reconciler, so runner pods stayed off the spot pool for a day while every
+// other part of the change looked correct.
+func newRunnerPoolReconciler(c client.Client) *controller.RunnerPoolReconciler {
+	return &controller.RunnerPoolReconciler{
+		Client:               c,
+		RunnerEnv:            runnerEnv(),
+		RunnerServiceAccount: runnerServiceAccount(),
+		RunnerTolerations:    runnerTolerations(),
+	}
+}
+
 func main() {
 	var metricsAddr, probeAddr string
 	var enableLeaderElection bool
@@ -114,11 +131,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.RunnerPoolReconciler{
-		Client:               mgr.GetClient(),
-		RunnerEnv:            runnerEnv(),
-		RunnerServiceAccount: runnerServiceAccount(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = newRunnerPoolReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RunnerPool")
 		os.Exit(1)
 	}

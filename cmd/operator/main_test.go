@@ -46,3 +46,26 @@ func TestParseTolerations(t *testing.T) {
 		}
 	})
 }
+
+// TestReconcilerCarriesTolerations pins the wiring, not the parse.
+//
+// SP_RUNNER_TOLERATIONS was read correctly and tested on its own in #33, and
+// then never passed to the reconciler, so every runner pod kept scheduling on
+// on-demand capacity while the Secret, the image and the parse were all
+// right. A test of parseTolerations alone cannot see that.
+func TestReconcilerCarriesTolerations(t *testing.T) {
+	t.Setenv("SP_RUNNER_TOLERATIONS", `[{"key":"synergyplus.io/runner","operator":"Equal","value":"true","effect":"NoSchedule"}]`)
+	t.Setenv("SP_RUNNER_SERVICE_ACCOUNT", "synergyplus-runner")
+
+	r := newRunnerPoolReconciler(nil)
+
+	if got := len(r.RunnerTolerations); got != 1 {
+		t.Fatalf("RunnerTolerations = %d, want 1 - the env never reached the reconciler", got)
+	}
+	if r.RunnerTolerations[0].Key != "synergyplus.io/runner" {
+		t.Errorf("toleration key = %q, want the runner taint", r.RunnerTolerations[0].Key)
+	}
+	if r.RunnerServiceAccount != "synergyplus-runner" {
+		t.Errorf("RunnerServiceAccount = %q, want it read from the environment too", r.RunnerServiceAccount)
+	}
+}
